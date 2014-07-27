@@ -22,20 +22,25 @@
 (defn rendered [component state & tests]
   (binding [om/*instrument* -instrument]
     (let [rendered-comp (.render (om/build* component state {}))]
-      ((apply every-pred tests) rendered-comp)
+      ;; Need to filter out true values, ans return true on an empty
+      ;; list (same in tag), then apply that to all other sequences of
+      ;; predicates
+      (map (fn [test component] (test component)) tests (repeat rendered-comp))
       )
     )
   )
 
 (defn tag [tag-name & tests]
   (fn [component]
-    (and
-     (= (upper-case tag-name) (.-tagName component))
-     (if (empty? tests)
-       true
-       ((apply every-pred tests) component)
-       )
-     )
+    (let [actual (.-tagName component)]
+      (if-not (= (upper-case tag-name) actual)
+        {:msg "Tag does not match" :expected tag-name :actual actual}
+        (if (empty? tests)
+          true
+          (map (fn [test c] (test c)) tests (repeat component))
+          )
+        )
+      )
     )
   )
 
@@ -62,7 +67,10 @@
 
 (defn text [text]
   (fn [component]
-    (= text component)
+    (if (= text component)
+      true
+      {:msg "Text does not match" :expected text :actual component}
+      )
     )
   )
 
@@ -77,6 +85,11 @@
 
 (defn with-class [class-name]
   (fn [component]
-    (= class-name (.. component -props -className))
+    (let [actual (.. component -props -className)]
+      (if (= class-name actual)
+        true
+        {:msg "Class name does not match" :expected class-name :actual actual}
+        )
+      )
     )
   )

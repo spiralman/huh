@@ -4,16 +4,11 @@
   )
 
 (defmethod t/assert-expr 'rendered [msg form]
-  `(let [~'-failed-predicates []]
-     (if ~form
-       (do-report (t/test-context)
-                  {:type :pass, :message ~msg,
-                   :expected '~form, :actual ~form}
-                  )
-       (do-report (t/test-context)
-                  {:type :fail, :message ~msg,
-                   :expected '~form, :actual ~'-failed-predicates}
-                  )
-       )
+  `(let [result# ~form]
+     (println result)
+     (do-report (t/test-context)
+                {:type (if (= true result#) :pass :fail), :message ~msg,
+                 :expected '~form, :actual result#}
+                )
      )
   )
