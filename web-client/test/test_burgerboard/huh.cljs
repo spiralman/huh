@@ -19,13 +19,30 @@
    }
   )
 
+(defn apply-all
+  ;; calls each function in fns with arg and returns a seq of the
+  ;; results (like the inverse of map)
+  [fns arg]
+  (map (fn [f a] (f a)) fns (repeat arg))
+  )
+
+(defn test-predicates
+  ;; Checks all predicates against a component, returns true if they
+  ;; all pass, or a seq of failures if any failed.
+  [preds component msg]
+  (if-let [failures
+             (seq (filter
+                   (fn [result] (not= true result))
+                   (apply-all preds component)))]
+    (conj failures msg)
+    true
+    )
+  )
+
 (defn rendered [component state & tests]
   (binding [om/*instrument* -instrument]
     (let [rendered-comp (.render (om/build* component state {}))]
-      ;; Need to filter out true values, ans return true on an empty
-      ;; list (same in tag), then apply that to all other sequences of
-      ;; predicates
-      (map (fn [test component] (test component)) tests (repeat rendered-comp))
+      (test-predicates tests rendered-comp {:in "rendered component"})
       )
     )
   )
@@ -37,7 +54,7 @@
         {:msg "Tag does not match" :expected tag-name :actual actual}
         (if (empty? tests)
           true
-          (map (fn [test c] (test c)) tests (repeat component))
+          (test-predicates tests component {:in (str "tag " tag-name)})
           )
         )
       )
@@ -46,24 +63,35 @@
 
 (defn containing [& tests]
   (fn [component]
-    (let [children (js->clj (.. component -props -children))]
+    (let [children (js->clj (.. component -props -children))
+          test-count (count tests)]
       (if (sequential? children)
-        (and
-         (= (count tests) (count children))
-         (every? true?
-                 (map (fn [pred child] (pred child))
-                      tests children
-                      )
-                 )
-         )
-        (and
-         (= 1 (count tests))
-         ((nth tests 0) children) ;; Children is actually just one child
-         )
+        ;; React annoyingly makes children = the single child element,
+        ;; when there is only one, instead of a list of one
+        (let [child-count (count children)]
+          (if (not= test-count child-count)
+            {:msg "Wrong number of child elements"
+             :expected test-count :actual child-count}
+            (if-let [failures
+                     (seq (filter (fn [result] (not= true result))
+                                  (map (fn [pred child] (pred child))
+                                       tests children
+                                       )))]
+              failures
+              true
+              )
+            )
+          )
+        (if (not= 1 test-count) ;; Children is actually just one child
+          {:msg "Wrong number of child elements"
+           :expected 1 :actual test-count}
+          ((nth tests 0) children)
+          )
         )
       )
     )
   )
+
 
 (defn text [text]
   (fn [component]
