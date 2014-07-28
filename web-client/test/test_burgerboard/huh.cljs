@@ -102,12 +102,27 @@
     )
   )
 
+(defn component-name [component]
+  (.-name component)                    ; This isn't standard JS, but
+                                        ; works enough places, for now
+  )
+
 (defn sub-component [sub-component cursor]
   (fn [component]
-    (= {:sub-component sub-component
-        :cursor cursor}
-       component
+    (let [expected-name (component-name sub-component)
+          actual-name (component-name (:sub-component component))]
+      (cond
+       (not= sub-component (:sub-component component))
+       {:msg "sub-component does not match"
+        :expected expected-name :actual actual-name}
+
+       (not= cursor (:cursor component))
+       {:msg (str "sub-component cursor does not match for " expected-name)
+        :expected cursor :actual (:cursor component)}
+
+       :else true
        )
+      )
     )
   )
 
