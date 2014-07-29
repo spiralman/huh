@@ -84,7 +84,7 @@
           )
         (if (not= 1 test-count) ;; Children is actually just one child
           {:msg "Wrong number of child elements"
-           :expected 1 :actual test-count}
+           :expected test-count :actual 1}
           ((nth tests 0) children)
           )
         )
