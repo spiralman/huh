@@ -19,13 +19,6 @@
    }
   )
 
-(defn apply-all
-  ;; calls each function in fns with arg and returns a seq of the
-  ;; results (like the inverse of map)
-  [fns arg]
-  (map (fn [f a] (f a)) fns (repeat arg))
-  )
-
 (defn test-predicates
   ;; Checks all predicates against a component, returns true if they
   ;; all pass, or a seq of failures if any failed.
@@ -33,7 +26,7 @@
   (if-let [failures
              (seq (filter
                    (fn [result] (not= true result))
-                   (apply-all preds component)))]
+                   ((apply juxt preds) component)))]
     (conj failures msg)
     true
     )
