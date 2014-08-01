@@ -85,6 +85,12 @@
     )
   )
 
+(defn nothing [component]
+  (if (nil? component)
+    true
+    {:msg "non empty container" :expected nil :actual component}
+    )
+  )
 
 (defn text [text]
   (fn [component]
