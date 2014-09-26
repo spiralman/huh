@@ -4,7 +4,7 @@
    [cemerick.cljs.test :as t]
    [om.core :as om :include-macros true]
    [om.dom :as dom :include-macros true]
-   [clojure.string :refer [upper-case]]
+   [clojure.string :refer [lower-case]]
    )
   )
 
@@ -40,14 +40,22 @@
     )
   )
 
-(defn tag [tag-name & tests]
+(defn tag-name [component]
+  (cond
+   (fn? (.-getDisplayName component)) (.getDisplayName component)
+   (not (nil? (.-tagName component))) (lower-case (.-tagName component))
+   :else (.-type (.-props component))
+    )
+  )
+
+(defn tag [expected-tag & tests]
   (fn [component]
-    (let [actual (.-tagName component)]
-      (if-not (= (upper-case tag-name) actual)
-        {:msg "Tag does not match" :expected tag-name :actual actual}
+    (let [actual (tag-name component)]
+      (if-not (= expected-tag actual)
+        {:msg "Tag does not match" :expected expected-tag :actual actual}
         (if (empty? tests)
           true
-          (test-predicates tests component {:in (str "tag " tag-name)})
+          (test-predicates tests component {:in (str "tag " expected-tag)})
           )
         )
       )
@@ -131,6 +139,18 @@
       (if (= class-name actual)
         true
         {:msg "Class name does not match" :expected class-name :actual actual}
+        )
+      )
+    )
+  )
+
+(defn with-attr [attr-name attr-value]
+  (fn [component]
+    (let [actual-value (aget (.. component -props) attr-name)]
+      (if (= attr-value actual-value)
+        true
+        {:msg "Attribute value does not match"
+         :expected attr-value :actual actual-value}
         )
       )
     )
