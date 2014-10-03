@@ -15,8 +15,7 @@
 
 (defn -instrument [sub-component cursor _]
   {:sub-component sub-component
-   :cursor cursor
-   }
+   :cursor cursor}
   )
 
 (defn test-predicates
@@ -32,9 +31,34 @@
     )
   )
 
+(defn rendered-component [component value]
+  (let [state (om/setup
+               (if (satisfies? IAtom value)
+                 value
+                 (atom value))
+               (gensym) nil)]
+    (binding [om/*state* state]
+      (.render (om/build* component (om/to-cursor @state state [])))
+      )
+    )
+  )
+
+(defn get-child [component child]
+  (let [children (js->clj (.. component -props -children))]
+    (if (sequential? children)
+      (nth children child)
+      children
+      )
+    )
+  )
+
+(defn in [component & accessors]
+  (reduce get-child component accessors)
+  )
+
 (defn rendered [component state & tests]
   (binding [om/*instrument* -instrument]
-    (let [rendered-comp (.render (om/build* component state {}))]
+    (let [rendered-comp (rendered-component component state)]
       (test-predicates tests rendered-comp {:in "rendered component"})
       )
     )
@@ -63,10 +87,10 @@
   )
 
 (defn containing [& tests]
-  (fn [component]
-    (let [children (js->clj (.. component -props -children))
+  (fn -containing-pred [component]
+    (let [children (.. component -props -children)
           test-count (count tests)]
-      (if (sequential? children)
+      (if (= (type children) js/Array)
         ;; React annoyingly makes children = the single child element,
         ;; when there is only one, instead of a list of one
         (let [child-count (count children)]
@@ -115,17 +139,18 @@
   )
 
 (defn sub-component [sub-component cursor]
-  (fn [component]
+  (fn -sub-component-pred [component]
     (let [expected-name (component-name sub-component)
-          actual-name (component-name (:sub-component component))]
+          actual-name (component-name (:sub-component component))
+          actual-component @(:cursor component)]
       (cond
        (not= sub-component (:sub-component component))
        {:msg "sub-component does not match"
         :expected expected-name :actual actual-name}
 
-       (not= cursor (:cursor component))
+       (not= cursor actual-component)
        {:msg (str "sub-component cursor does not match for " expected-name)
-        :expected cursor :actual (:cursor component)}
+        :expected cursor :actual actual-component}
 
        :else true
        )
@@ -153,5 +178,12 @@
          :expected attr-value :actual actual-value}
         )
       )
+    )
+  )
+
+(defn after-event [event-attr event-arg component callback]
+  (do
+    ((aget (.. component -props) (name event-attr)) event-arg)
+    (callback component)
     )
   )
