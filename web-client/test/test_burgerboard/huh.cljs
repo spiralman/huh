@@ -73,7 +73,7 @@
   )
 
 (defn tag [expected-tag & tests]
-  (fn [component]
+  (fn -tag-pred [component]
     (let [actual (tag-name component)]
       (if-not (= expected-tag actual)
         {:msg "Tag does not match" :expected expected-tag :actual actual}
@@ -125,7 +125,7 @@
   )
 
 (defn text [text]
-  (fn [component]
+  (fn -text-pred [component]
     (if (= text component)
       true
       {:msg "Text does not match" :expected text :actual component}
@@ -159,7 +159,7 @@
   )
 
 (defn with-class [class-name]
-  (fn [component]
+  (fn -with-class-pred [component]
     (let [actual (.. component -props -className)]
       (if (= class-name actual)
         true
@@ -170,7 +170,7 @@
   )
 
 (defn with-attr [attr-name attr-value]
-  (fn [component]
+  (fn -with-attr-pred [component]
     (let [actual-value (aget (.. component -props) attr-name)]
       (if (= attr-value actual-value)
         true
