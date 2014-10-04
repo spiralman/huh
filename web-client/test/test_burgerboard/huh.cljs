@@ -31,15 +31,17 @@
     )
   )
 
-(defn rendered-component [component value]
-  (let [state (om/setup
-               (if (satisfies? IAtom value)
-                 value
-                 (atom value))
-               (gensym) nil)]
-    (binding [om/*state* state]
-      (.render (om/build* component (om/to-cursor @state state [])))
-      )
+(defn setup-state [value]
+  (om/setup
+   (if (satisfies? IAtom value)
+     value
+     (atom value))
+   (gensym) nil)
+  )
+
+(defn rendered-component [component state]
+  (binding [om/*state* state]
+    (.render (om/build* component (om/to-cursor @state state [])))
     )
   )
 
@@ -56,10 +58,12 @@
   (reduce get-child component accessors)
   )
 
-(defn rendered [component state & tests]
-  (binding [om/*instrument* -instrument]
-    (let [rendered-comp (rendered-component component state)]
-      (test-predicates tests rendered-comp {:in "rendered component"})
+(defn rendered [component value & tests]
+  (let [state (setup-state value)]
+    (binding [om/*instrument* -instrument]
+      (let [rendered-comp (rendered-component component state)]
+        (test-predicates tests rendered-comp {:in "rendered component"})
+        )
       )
     )
   )
