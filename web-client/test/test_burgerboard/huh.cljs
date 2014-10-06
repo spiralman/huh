@@ -76,6 +76,11 @@
     )
   )
 
+(defn component-name [component]
+  (.-name component)                    ; This isn't standard JS, but
+                                        ; works enough places, for now
+  )
+
 (defn tag [expected-tag & tests]
   (fn -tag-pred [component]
     (let [actual (tag-name component)]
@@ -90,6 +95,34 @@
     )
   )
 
+(defn multiple-components? [component]
+  (= (type component) js/Array))
+
+(declare display-children)
+
+(defn display-child
+  ([component]
+     (cond
+      (not (nil? (.. component -props)))
+      {
+       :tag (tag-name component)
+       :children (display-children (.. component -props -children))
+       }
+      (fn? component) {:sub-component (component-name component)}
+      (string? component) {:text component}
+      (satisfies? IDeref component) {:cursor @component}
+      :else {:unknown "unknown"}
+      )
+     )
+  )
+
+(defn display-children [children]
+  (if (multiple-components? children)
+    (map #(display-child %) children)
+    (display-child children)
+    )
+  )
+
 (defn containing [& tests]
   (fn -containing-pred [component]
     (let [children (.. component -props -children)
@@ -100,7 +133,8 @@
         (let [child-count (count children)]
           (if (not= test-count child-count)
             {:msg "Wrong number of child elements"
-             :expected test-count :actual child-count}
+             :expected test-count :actual child-count
+             :actual-children (display-children children)}
             (if-let [failures
                      (seq (filter (fn [result] (not= true result))
                                   (map (fn [pred child] (pred child))
@@ -113,7 +147,8 @@
           )
         (if (not= 1 test-count) ;; Children is actually just one child
           {:msg "Wrong number of child elements"
-           :expected test-count :actual 1}
+           :expected test-count :actual 1
+           :actual-children (display-children children)}
           ((nth tests 0) children)
           )
         )
@@ -135,11 +170,6 @@
       {:msg "Text does not match" :expected text :actual component}
       )
     )
-  )
-
-(defn component-name [component]
-  (.-name component)                    ; This isn't standard JS, but
-                                        ; works enough places, for now
   )
 
 (defn sub-component [sub-component cursor]
