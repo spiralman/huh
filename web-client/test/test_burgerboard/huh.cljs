@@ -209,7 +209,8 @@
       (if (= attr-value actual-value)
         true
         {:msg "Attribute value does not match"
-         :expected attr-value :actual actual-value}
+         :expected attr-value :actual actual-value
+         :attr attr-name :props (.. component -props)}
         )
       )
     )
