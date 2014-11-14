@@ -228,8 +228,10 @@
   )
 
 (defn after-event [event-attr event-arg component callback]
-  (do
-    ((aget (.. component -props) (name event-attr)) event-arg)
-    (callback component)
+  ((or
+    (aget (.. component -props) (name event-attr))
+    (fn [_] (throw (js/Error. (str "No event handler for " event-attr))))
     )
+   event-arg)
+  (callback component)
   )
