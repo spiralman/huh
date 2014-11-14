@@ -39,10 +39,13 @@
    (gensym) nil)
   )
 
-(defn rendered-component [component state]
-  (binding [om/*state* state]
-    (.render (om/build* component (om/to-cursor @state state [])))
-    )
+(defn rendered-component
+  ([component state] (rendered-component component state nil))
+  ([component state m]
+     (binding [om/*state* state]
+       (.render (om/build* component (om/to-cursor @state state []) m))
+       )
+     )
   )
 
 (defn get-child [component child]
@@ -58,10 +61,18 @@
   (reduce get-child component accessors)
   )
 
+(defn -extract-m [tests]
+  (if (map? (first tests))
+    [(first tests) (rest tests)]
+    [nil tests]
+    )
+  )
+
 (defn rendered [component value & tests]
-  (let [state (setup-state value)]
+  (let [[m tests] (-extract-m tests)
+        state (setup-state value)]
     (binding [om/*instrument* -instrument]
-      (let [rendered-comp (rendered-component component state)]
+      (let [rendered-comp (rendered-component component state m)]
         (test-predicates tests rendered-comp {:in "rendered component"})
         )
       )
