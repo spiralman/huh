@@ -13,9 +13,10 @@
   (apply t/do-report args)
   )
 
-(defn -instrument [sub-component cursor _]
+(defn -instrument [sub-component cursor m]
   {:sub-component sub-component
-   :cursor cursor}
+   :cursor cursor
+   :m m}
   )
 
 (defn test-predicates
@@ -183,24 +184,32 @@
     )
   )
 
-(defn sub-component [sub-component cursor]
-  (fn -sub-component-pred [component]
-    (let [expected-name (component-name sub-component)
-          actual-name (component-name (:sub-component component))
-          actual-component @(:cursor component)]
-      (cond
-       (not= sub-component (:sub-component component))
-       {:msg "sub-component does not match"
-        :expected expected-name :actual actual-name}
+(defn sub-component
+  ([expected-component cursor] (sub-component expected-component cursor nil))
+  ([expected-component cursor m]
+     (fn -sub-component-pred [component]
+       (let [expected-name (component-name expected-component)
+             actual-name (component-name (:sub-component component))
+             actual-cursor @(:cursor component)
+             actual-m (:m component)]
+         (cond
+          (not= expected-component (:sub-component component))
+          {:msg "sub-component does not match"
+           :expected expected-name :actual actual-name}
 
-       (not= cursor actual-component)
-       {:msg (str "sub-component cursor does not match for " expected-name)
-        :expected cursor :actual actual-component}
+          (not= cursor actual-cursor)
+          {:msg (str "sub-component cursor does not match for " expected-name)
+           :expected cursor :actual actual-cursor}
 
-       :else true
+          (and (not (nil? m)) (not= m actual-m))
+          {:msg (str "sub-component m does not match for " expected-name)
+           :expected m :actual actual-m}
+
+          :else true
+          )
+         )
        )
-      )
-    )
+     )
   )
 
 (defn with-class [class-name]
