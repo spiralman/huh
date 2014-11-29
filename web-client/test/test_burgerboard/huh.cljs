@@ -108,7 +108,11 @@
   )
 
 (defn multiple-components? [component]
-  (= (type component) js/Array))
+  (or
+   (= (type component) js/Array)
+   (sequential? component)
+   )
+  )
 
 (declare display-children)
 
