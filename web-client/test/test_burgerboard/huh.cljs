@@ -5,6 +5,7 @@
    [om.core :as om :include-macros true]
    [om.dom :as dom :include-macros true]
    [clojure.string :refer [lower-case]]
+   [goog.array :as g-array]
    )
   )
 
@@ -14,9 +15,18 @@
   )
 
 (defn -instrument [sub-component cursor m]
-  {:sub-component sub-component
-   :cursor cursor
-   :m m}
+  (dom/div #js {:data-huh-sub-component sub-component
+                :data-huh-cursor (.stringify js/JSON cursor)
+                :data-huh-m (.stringify js/JSON m)})
+  )
+
+(defn decode-sub-component [sub-component]
+  {:sub-component (js/eval (str "("
+                                (.getAttribute sub-component
+                                               "data-huh-sub-component")
+                                ")"))
+   :cursor (.parse js/JSON (.getAttribute sub-component "data-huh-cursor"))
+   :m (.parse js/JSON (.getAttribute sub-component "data-huh-m"))}
   )
 
 (defn test-predicates
@@ -40,22 +50,25 @@
    (gensym) nil)
   )
 
-(defn rendered-component
-  ([component state] (rendered-component component state nil))
+(defn built-component
+  ([component state] (built-component component state nil))
   ([component state m]
      (binding [om/*state* state]
-       (.render (om/build* component (om/to-cursor @state state []) m))
-       )
+       (om/build* component (om/to-cursor @state state []) m))
      )
   )
 
+(defn rendered-component
+  ([component state] (rendered-component component state nil))
+  ([component state m]
+     (let [built-c (built-component component state m)
+           dom-el (js/document.createElement "div")]
+       (.getDOMNode (js/React.renderComponent built-c dom-el))
+     ))
+  )
+
 (defn get-child [component child]
-  (let [children (js->clj (.. component -props -children))]
-    (if (sequential? children)
-      (nth children child)
-      children
-      )
-    )
+  (aget (.-children component) child)
   )
 
 (defn in [component & accessors]
@@ -119,10 +132,10 @@
 (defn display-child
   ([component]
      (cond
-      (not (nil? (.. component -props)))
+      (not (nil? (.-tagName component)))
       {
-       :tag (tag-name component)
-       :children (display-children (.. component -props -children))
+       :tag (.-tagName component)
+       :children (display-children (g-array/toArray (.. component -children)))
        }
       (fn? component) {:sub-component (component-name component)}
       (string? component) {:text component}
@@ -141,49 +154,34 @@
 
 (defn containing [& tests]
   (fn -containing-pred [component]
-    (let [children (.. component -props -children)
+    (let [children (g-array/toArray (.. component -children))
           test-count (count tests)]
-      (if (= (type children) js/Array)
-        ;; React annoyingly makes children = the single child element,
-        ;; when there is only one, instead of a list of one
-        (let [child-count (count children)]
-          (if (not= test-count child-count)
-            {:msg "Wrong number of child elements"
-             :expected test-count :actual child-count
-             :actual-children (display-children children)}
-            (if-let [failures
-                     (seq (filter (fn [result] (not= true result))
-                                  (map (fn [pred child] (pred child))
-                                       tests children
-                                       )))]
-              failures
-              true
-              )
-            )
-          )
-        (if (not= 1 test-count) ;; Children is actually just one child
+      (let [child-count (.-length children)]
+        (if (not= test-count child-count)
           {:msg "Wrong number of child elements"
-           :expected test-count :actual 1
+           :expected test-count :actual child-count
            :actual-children (display-children children)}
-          ((nth tests 0) children)
+          (if-let [failures
+                   (seq (filter (fn [result] (not= true result))
+                                (map (fn [pred child] (pred child))
+                                     tests children
+                                     )))]
+            failures
+            true
+            )
           )
         )
       )
     )
   )
 
-(defn nothing [component]
-  (if (nil? component)
-    true
-    {:msg "non empty container" :expected nil :actual component}
-    )
-  )
-
-(defn text [text]
+(defn with-text [text]
   (fn -text-pred [component]
-    (if (= text component)
-      true
-      {:msg "Text does not match" :expected text :actual component}
+    (let [actual-text (.-textContent component)]
+      (if (= text actual-text)
+        true
+        {:msg "Text does not match" :expected text :actual actual-text}
+        )
       )
     )
   )
@@ -193,11 +191,12 @@
   ([expected-component cursor m]
      (fn -sub-component-pred [component]
        (let [expected-name (component-name expected-component)
-             actual-name (component-name (:sub-component component))
-             actual-cursor @(:cursor component)
-             actual-m (:m component)]
+             {actual-sub-component :sub-component
+              actual-cursor :cursor
+              actual-m :m} (decode-sub-component component)
+             actual-name (component-name actual-sub-component)]
          (cond
-          (not= expected-component (:sub-component component))
+          (not= expected-component actual-sub-component)
           {:msg "sub-component does not match"
            :expected expected-name :actual actual-name}
 
@@ -218,8 +217,8 @@
 
 (defn with-class [class-name]
   (fn -with-class-pred [component]
-    (let [actual (.. component -props -className)]
-      (if (= class-name actual)
+    (let [actual (.. component -className)]
+      (if (.contains (.. component -classList) class-name)
         true
         {:msg "Class name does not match" :expected class-name :actual actual}
         )
@@ -229,22 +228,19 @@
 
 (defn with-attr [attr-name attr-value]
   (fn -with-attr-pred [component]
-    (let [actual-value (aget (.. component -props) attr-name)]
+    (let [actual-value (.getAttribute component attr-name)]
       (if (= attr-value actual-value)
         true
         {:msg "Attribute value does not match"
          :expected attr-value :actual actual-value
-         :attr attr-name :props (.. component -props)}
+         :attr attr-name}
         )
       )
     )
   )
 
 (defn after-event [event-attr event-arg component callback]
-  ((or
-    (aget (.. component -props) (name event-attr))
-    (fn [_] (throw (js/Error. (str "No event handler for " event-attr))))
-    )
-   event-arg)
+  ((aget js/React.addons.TestUtils.Simulate (name event-attr))
+   component event-arg)
   (callback component)
   )
