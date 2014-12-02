@@ -14,19 +14,43 @@
   (apply t/do-report args)
   )
 
+(defn component-name [component]
+  ;; component is a function; this isn't really standardized JS, but
+  ;; it works in most browsers anyway.
+  (.-name component)
+  )
+
+(defn -sub-component [data owner]
+  (reify
+    om/IRender
+    (render [this]
+      (dom/div #js {:className "huh-sub-component"})
+      )
+    )
+  )
+
 (defn -instrument [sub-component cursor m]
-  (dom/div #js {:data-huh-sub-component sub-component
-                :data-huh-cursor (.stringify js/JSON cursor)
-                :data-huh-m (.stringify js/JSON m)})
+  (om/build* -sub-component
+             {}
+             {:init-state
+              {:sub-component sub-component
+               :cursor cursor
+               :m m}
+              })
   )
 
 (defn decode-sub-component [sub-component]
-  {:sub-component (js/eval (str "("
-                                (.getAttribute sub-component
-                                               "data-huh-sub-component")
-                                ")"))
-   :cursor (.parse js/JSON (.getAttribute sub-component "data-huh-cursor"))
-   :m (.parse js/JSON (.getAttribute sub-component "data-huh-m"))}
+  (let [state (om/get-state sub-component)]
+    {
+     :sub-component (:sub-component state)
+     :cursor @(:cursor state)
+     :m (:m state)
+     }
+    )
+  )
+
+(defn sub-component? [component]
+  (= (.. component -props -className))
   )
 
 (defn test-predicates
@@ -63,16 +87,31 @@
   ([component state m]
      (let [built-c (built-component component state m)
            dom-el (js/document.createElement "div")]
-       (.getDOMNode (js/React.renderComponent built-c dom-el))
+       (js/React.renderComponent built-c dom-el)
      ))
   )
 
-(defn get-child [component child]
-  (aget (.-children component) child)
+(defn children-of [component]
+  (let [actual-component (or (.. component -_renderedComponent) component)
+        children (.. actual-component -props -children)]
+    (cond
+     (= (type children) js/Array)
+     (js->clj children)
+     (= js/undefined children)
+     []
+     :else
+     [children]
+     )
+    )
   )
 
-(defn in [component & accessors]
-  (reduce get-child component accessors)
+(defn in [component selector]
+  (let [component-node (.getDOMNode component)]
+    (if (= selector "")
+      component-node
+      (.querySelector component-node selector)
+      )
+    )
   )
 
 (defn -extract-m [tests]
@@ -94,21 +133,20 @@
   )
 
 (defn tag-name [component]
-  (cond
-   (fn? (.-getDisplayName component)) (.getDisplayName component)
-   (not (nil? (.-tagName component))) (lower-case (.-tagName component))
-   :else (.-type (.-props component))
+  (let [display-name (and (fn? (.-getDisplayName component))
+                          (.getDisplayName component))]
+    (cond
+     display-name display-name
+     (not (nil? (.-tagName component))) (lower-case (.-tagName component))
+     :else (.-type (.-props component))
+     )
     )
-  )
-
-(defn component-name [component]
-  (.-name component)                    ; This isn't standard JS, but
-                                        ; works enough places, for now
   )
 
 (defn tag [expected-tag & tests]
   (fn -tag-pred [component]
-    (let [actual (tag-name component)]
+    (let [component-node (.getDOMNode component)
+          actual (tag-name component-node)]
       (if-not (= expected-tag actual)
         {:msg "Tag does not match" :expected expected-tag :actual actual}
         (if (empty? tests)
@@ -121,10 +159,7 @@
   )
 
 (defn multiple-components? [component]
-  (or
-   (= (type component) js/Array)
-   (sequential? component)
-   )
+  (sequential? component)
   )
 
 (declare display-children)
@@ -132,12 +167,14 @@
 (defn display-child
   ([component]
      (cond
-      (not (nil? (.-tagName component)))
+      (sub-component? component) {:sub-component
+                                  (component-name
+                                   (om/get-state component :sub-component))}
+      (not (nil? (.-props component)))
       {
-       :tag (.-tagName component)
-       :children (display-children (g-array/toArray (.. component -children)))
+       :tag (tag-name component)
+       :children (display-children (children-of component))
        }
-      (fn? component) {:sub-component (component-name component)}
       (string? component) {:text component}
       (satisfies? IDeref component) {:cursor @component}
       :else {:unknown "unknown"}
@@ -154,21 +191,21 @@
 
 (defn containing [& tests]
   (fn -containing-pred [component]
-    (let [children (g-array/toArray (.. component -children))
-          test-count (count tests)]
-      (let [child-count (.-length children)]
-        (if (not= test-count child-count)
-          {:msg "Wrong number of child elements"
-           :expected test-count :actual child-count
-           :actual-children (display-children children)}
-          (if-let [failures
-                   (seq (filter (fn [result] (not= true result))
-                                (map (fn [pred child] (pred child))
-                                     tests children
-                                     )))]
-            failures
-            true
-            )
+    (let [children (children-of component)
+          test-count (count tests)
+          child-count (count children)]
+      (if (not= test-count child-count)
+        {:msg "Wrong number of child elements"
+         :expected test-count :actual child-count
+         :actual-children (display-children children)
+         }
+        (if-let [failures
+                 (seq (filter (fn [result] (not= true result))
+                              (map (fn [pred child] (pred child))
+                                   tests children
+                                   )))]
+          failures
+          true
           )
         )
       )
@@ -177,7 +214,8 @@
 
 (defn with-text [text]
   (fn -text-pred [component]
-    (let [actual-text (.-textContent component)]
+    (let [component (.getDOMNode component)
+          actual-text (.-textContent component)]
       (if (= text actual-text)
         true
         {:msg "Text does not match" :expected text :actual actual-text}
@@ -217,7 +255,8 @@
 
 (defn with-class [class-name]
   (fn -with-class-pred [component]
-    (let [actual (.. component -className)]
+    (let [component (.getDOMNode component)
+          actual (.. component -className)]
       (if (.contains (.. component -classList) class-name)
         true
         {:msg "Class name does not match" :expected class-name :actual actual}
@@ -228,7 +267,8 @@
 
 (defn with-attr [attr-name attr-value]
   (fn -with-attr-pred [component]
-    (let [actual-value (.getAttribute component attr-name)]
+    (let [component (.getDOMNode component)
+          actual-value (.getAttribute component attr-name)]
       (if (= attr-value actual-value)
         true
         {:msg "Attribute value does not match"
@@ -239,8 +279,8 @@
     )
   )
 
-(defn after-event [event-attr event-arg component callback]
+(defn after-event [event-attr event-arg dom-node callback]
   ((aget js/React.addons.TestUtils.Simulate (name event-attr))
-   component event-arg)
-  (callback component)
+   dom-node event-arg)
+  (callback dom-node)
   )
