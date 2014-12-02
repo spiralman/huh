@@ -105,13 +105,16 @@
     )
   )
 
-(defn in [component selector]
-  (let [component-node (.getDOMNode component)]
-    (if (= selector "")
-      component-node
-      (.querySelector component-node selector)
-      )
-    )
+(defn in
+  ([component] (om/get-node component))
+  ([component selector]
+     (let [component-node (om/get-node component)]
+       (if (= selector "")
+         component-node
+         (.querySelector component-node selector)
+         )
+       )
+     )
   )
 
 (defn -extract-m [tests]
@@ -145,7 +148,7 @@
 
 (defn tag [expected-tag & tests]
   (fn -tag-pred [component]
-    (let [component-node (.getDOMNode component)
+    (let [component-node (om/get-node component)
           actual (tag-name component-node)]
       (if-not (= expected-tag actual)
         {:msg "Tag does not match" :expected expected-tag :actual actual}
@@ -214,7 +217,7 @@
 
 (defn with-text [text]
   (fn -text-pred [component]
-    (let [component (.getDOMNode component)
+    (let [component (om/get-node component)
           actual-text (.-textContent component)]
       (if (= text actual-text)
         true
@@ -255,7 +258,7 @@
 
 (defn with-class [class-name]
   (fn -with-class-pred [component]
-    (let [component (.getDOMNode component)
+    (let [component (om/get-node component)
           actual (.. component -className)]
       (if (.contains (.. component -classList) class-name)
         true
@@ -267,7 +270,7 @@
 
 (defn with-attr [attr-name attr-value]
   (fn -with-attr-pred [component]
-    (let [component (.getDOMNode component)
+    (let [component (om/get-node component)
           actual-value (.getAttribute component attr-name)]
       (if (= attr-value actual-value)
         true
