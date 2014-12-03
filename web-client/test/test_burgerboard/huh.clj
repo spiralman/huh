@@ -11,3 +11,9 @@
                 )
      )
   )
+
+(defmacro with-rendered [params assertion]
+  `(fn ~params
+     (~assertion ~(nth params 0))
+     )
+  )
