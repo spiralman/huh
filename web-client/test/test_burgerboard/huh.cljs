@@ -43,7 +43,10 @@
   (let [state (om/get-state sub-component)]
     {
      :sub-component (:sub-component state)
-     :cursor @(:cursor state)
+     :cursor (if (satisfies? IDeref (:cursor state))
+               @(:cursor state)
+               (:cursor state)
+               )
      :m (:m state)
      }
     )
