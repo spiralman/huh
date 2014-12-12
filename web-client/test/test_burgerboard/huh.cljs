@@ -53,7 +53,7 @@
   )
 
 (defn sub-component? [component]
-  (= (.. component -props -className))
+  (= "huh-sub-component" (.. component -className))
   )
 
 (defn test-predicates
@@ -99,7 +99,7 @@
         children (.. actual-component -props -children)]
     (cond
      (= (type children) js/Array)
-     (js->clj children)
+     (filter #(not (string? %)) (js->clj children))
      (= js/undefined children)
      []
      :else
