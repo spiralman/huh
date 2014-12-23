@@ -271,6 +271,18 @@
     )
   )
 
+(defn has-attr [attr-name]
+  (fn -has-attr-pred [component]
+    (let [component (om/get-node component)]
+      (if (.hasAttribute component attr-name)
+        true
+        {:msg "Tag does not have attribute"
+         :attr attr-name}
+        )
+      )
+    )
+  )
+
 (defn with-attr [attr-name attr-value]
   (fn -with-attr-pred [component]
     (let [component (om/get-node component)
