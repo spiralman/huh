@@ -94,9 +94,13 @@
      ))
   )
 
+(defn props-of [component]
+  (let [actual-component (or (.. component -_renderedComponent) component)]
+    (.-props actual-component)
+    ))
+
 (defn children-of [component]
-  (let [actual-component (or (.. component -_renderedComponent) component)
-        children (.. actual-component -props -children)]
+  (let [children (.-children (props-of component))]
     (cond
      (= (type children) js/Array)
      (filter #(not (string? %)) (js->clj children))
@@ -216,6 +220,17 @@
         )
       )
     )
+  )
+
+(defn with-prop [prop-name expected-value]
+  (fn -with-prop-pred [component]
+    (let [actual-value (aget (.-props component) prop-name)]
+      (if (not= expected-value actual-value)
+        {:msg (str "Wrong value for prop '" prop-name "'")
+         :expected expected-value :actual actual-value}
+        true
+        )
+      ))
   )
 
 (defn with-text [text]
