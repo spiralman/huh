@@ -103,7 +103,7 @@
   (let [children (.-children (props-of component))]
     (cond
      (= (type children) js/Array)
-     (filter #(not (string? %)) (js->clj children))
+     (filter #(and (not (nil? %)) (not (string? %))) (js->clj children))
      (= js/undefined children)
      []
      :else
