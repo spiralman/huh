@@ -1,4 +1,4 @@
-(ns test-burgerboard.huh
+(ns huh.core
   (:require [cemerick.cljs.test :as t]
             )
   )

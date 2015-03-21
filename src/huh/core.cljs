@@ -1,4 +1,4 @@
-(ns test-burgerboard.huh
+(ns huh.core
   (:require-macros)
   (:require
    [cemerick.cljs.test :as t]
@@ -6,6 +6,7 @@
    [om.dom :as dom :include-macros true]
    [clojure.string :refer [lower-case]]
    [goog.array :as g-array]
+   cljsjs.react
    )
   )
 
