@@ -21,13 +21,33 @@
 (deftest test-coverage-is-good-enough
   (is (= 2 3)))
 
+;; with-text
 (deftest with-text-returns-true-when-text-present
   (is (= true ((huh/with-text "some text")
-               (rendered-div #js {}
-                             "some text")))))
+               (rendered-div #js {} "some text")))))
 
 (deftest with-text-returns-error-without-match
-  (is (= {:msg "Text does not match" :expected "some text" :actual "other text"}
+  (is (= {:msg "Text does not match"
+          :expected "some text" :actual "other text"}
          ((huh/with-text "some text")
-          (rendered-div #js {}
-                        "other text")))))
+          (rendered-div #js {} "other text")))))
+
+;; with-class
+(deftest with-class-returns-true-when-class-matches
+  (is (= true ((huh/with-class "some-class")
+               (rendered-div #js {:className "some-class"} nil)))))
+
+(deftest with-class-returns-true-when-class-present-in-list
+  (is (= true ((huh/with-class "some-class")
+               (rendered-div #js {:className "some-class other-class"} nil)))))
+
+(deftest with-class-returns-error-when-class-doesnt-match
+  (is (= {:msg "Class name does not match"
+          :expected "some-class" :actual "other-class"}
+          ((huh/with-class "some-class")
+           (rendered-div #js {:className "other-class"} nil)))))
+
+(deftest with-class-returns-error-when-class-not-specified
+  (is (= {:msg "Class name does not match"
+          :expected "some-class" :actual ""}
+          ((huh/with-class "some-class") (rendered-div #js {} nil)))))
