@@ -6,14 +6,14 @@
             [om.dom :as dom :include-macros true]
             [huh.core :as huh]))
 
-(defn rendered-div [props contents]
+(defn rendered-div [props & contents]
   (huh/rendered-component
    (fn [data owner]
      (reify
        om/IRender
        (render [this#]
-         (dom/div props
-                  contents))))
+         (apply dom/div props
+                contents))))
    (huh/setup-state {})))
 
 ;; To be deleted when there is reasonable test coverage for the
@@ -35,19 +35,38 @@
 ;; with-class
 (deftest with-class-returns-true-when-class-matches
   (is (= true ((huh/with-class "some-class")
-               (rendered-div #js {:className "some-class"} nil)))))
+               (rendered-div #js {:className "some-class"})))))
 
 (deftest with-class-returns-true-when-class-present-in-list
   (is (= true ((huh/with-class "some-class")
-               (rendered-div #js {:className "some-class other-class"} nil)))))
+               (rendered-div #js {:className "some-class other-class"})))))
 
 (deftest with-class-returns-error-when-class-doesnt-match
   (is (= {:msg "Class name does not match"
           :expected "some-class" :actual "other-class"}
-          ((huh/with-class "some-class")
-           (rendered-div #js {:className "other-class"} nil)))))
+         ((huh/with-class "some-class")
+          (rendered-div #js {:className "other-class"})))))
 
 (deftest with-class-returns-error-when-class-not-specified
   (is (= {:msg "Class name does not match"
           :expected "some-class" :actual ""}
-          ((huh/with-class "some-class") (rendered-div #js {} nil)))))
+         ((huh/with-class "some-class") (rendered-div #js {})))))
+
+;; with-attr
+(deftest with-attr-returns-true-when-attr-present
+  (is (= true ((huh/with-attr "type" "value")
+               (rendered-div #js {:type "value"})))))
+
+(deftest with-attr-returns-error-when-attr-not-specified
+  (is (= {:msg "Attribute value does not match"
+          :expected "value" :actual nil
+          :attr "type"}
+         ((huh/with-attr "type" "value")
+          (rendered-div #js {})))))
+
+(deftest with-attr-returns-error-when-attr-value-doesnt-match
+  (is (= {:msg "Attribute value does not match"
+          :expected "value" :actual "other"
+          :attr "type"}
+         ((huh/with-attr "type" "value")
+          (rendered-div #js {:type "other"})))))
