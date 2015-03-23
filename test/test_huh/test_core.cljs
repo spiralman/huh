@@ -21,6 +21,21 @@
 (deftest test-coverage-is-good-enough
   (is (= 2 3)))
 
+;; tag
+(deftest tag-returns-true-when-tag-name-matches
+  (is (= true ((huh/tag "div")
+               (rendered-div #js {})))))
+
+(deftest tag-returns-error-when-tag-name-doesnt-match
+  (is (= {:msg "Tag does not match" :expected "span" :actual "div"}
+         ((huh/tag "span") (rendered-div #js {})))))
+
+(deftest tag-checks-sub-tests
+  (is (= [{:in "tag div"}
+          {:msg "Text does not match" :expected "text" :actual "other"}]
+         ((huh/tag "div" (huh/with-text "text"))
+          (rendered-div #js {} "other")))))
+
 ;; with-text
 (deftest with-text-returns-true-when-text-present
   (is (= true ((huh/with-text "some text")
