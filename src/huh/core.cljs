@@ -91,7 +91,7 @@
   ([component state m]
      (let [built-c (built-component component state m)
            dom-el (js/document.createElement "div")]
-       (js/React.renderComponent built-c dom-el)
+       (js/React.addons.TestUtils.renderIntoDocument built-c)
      ))
   )
 
@@ -112,6 +112,10 @@
      )
     )
   )
+
+;; (defn children-of [component]
+;;   (js->clj (.map js/React.Children (.-children (props-of component))
+;;                  (fn [c] c))))
 
 (defn in
   ([component] (om/get-node component))
@@ -144,20 +148,14 @@
   )
 
 (defn tag-name [component]
-  (let [display-name (and (fn? (.-getDisplayName component))
-                          (.getDisplayName component))]
-    (cond
-     display-name display-name
-     (not (nil? (.-tagName component))) (lower-case (.-tagName component))
-     :else (.-type (.-props component))
-     )
-    )
+  (if (om/component? component)
+    (-> (om/get-node component) (.-tagName) (lower-case))
+    (-> (js->clj component) (get "type")))
   )
 
 (defn tag [expected-tag & tests]
   (fn -tag-pred [component]
-    (let [component-node (om/get-node component)
-          actual (tag-name component-node)]
+    (let [actual (tag-name component)]
       (if-not (= expected-tag actual)
         {:msg "Tag does not match" :expected expected-tag :actual actual}
         (if (empty? tests)

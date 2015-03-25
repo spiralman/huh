@@ -85,3 +85,29 @@
           :attr "type"}
          ((huh/with-attr "type" "value")
           (rendered-div #js {:type "other"})))))
+
+;; containing
+(deftest containing-returns-true-if-child-assertions-and-count-match
+  (is (= true ((huh/containing (huh/tag "div") (huh/tag "div"))
+               (rendered-div #js {} (dom/div #js {}) (dom/div #js {}))))))
+
+(deftest containing-returns-error-if-child-count-doesnt-match
+  (is (= {:msg "Wrong number of child elements"
+          :expected 2 :actual 1
+          :actual-children '({:tag "div" :children ()})}
+         ((huh/containing (huh/tag "div") (huh/tag "div"))
+          (rendered-div #js {} (dom/div #js {}))))))
+
+(defn stringify-comp [comp]
+  (.stringify js/JSON comp))
+
+(deftest containing-returns-errors-if-child-predicate-fails
+  (is (= '({:msg "Tag does not match"
+            :expected "span" :actual "div"}
+           {:msg "Tag does not match"
+            :expected "span" :actual "div"})
+         ((huh/containing (huh/tag "span") (huh/tag "span") (huh/tag "span"))
+          (rendered-div #js {}
+                        (dom/div #js {})
+                        (dom/span #js {})
+                        (dom/div #js {}))))))
