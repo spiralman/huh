@@ -95,32 +95,22 @@
      ))
   )
 
-(defn props-of [component]
-  (let [actual-component (or (.. component -_renderedComponent) component)]
-    (.-props actual-component)
-    ))
+(defn get-node [component]
+  (if (om/component? component)
+    (om/get-node component)
+    component))
 
 (defn children-of [component]
-  (let [children (.-children (props-of component))]
-    (cond
-     (= (type children) js/Array)
-     (filter #(and (not (nil? %)) (not (string? %))) (js->clj children))
-     (= js/undefined children)
-     []
-     :else
-     [children]
-     )
-    )
-  )
-
-;; (defn children-of [component]
-;;   (js->clj (.map js/React.Children (.-children (props-of component))
-;;                  (fn [c] c))))
+  (->
+   (get-node component)
+   (.-children)
+   (js/Array.prototype.slice.call)
+   (js->clj)))
 
 (defn in
-  ([component] (om/get-node component))
+  ([component] (get-node component))
   ([component selector]
-     (let [component-node (om/get-node component)]
+     (let [component-node (get-node component)]
        (if (= selector "")
          component-node
          (.querySelector component-node selector)
@@ -148,10 +138,10 @@
   )
 
 (defn tag-name [component]
-  (if (om/component? component)
-    (-> (om/get-node component) (.-tagName) (lower-case))
-    (-> (js->clj component) (get "type")))
-  )
+  (->
+   (get-node component)
+   (.-tagName)
+   (lower-case)))
 
 (defn tag [expected-tag & tests]
   (fn -tag-pred [component]
@@ -179,14 +169,12 @@
       (sub-component? component) {:sub-component
                                   (component-name
                                    (om/get-state component :sub-component))}
-      (not (nil? (.-props component)))
-      {
-       :tag (tag-name component)
-       :children (display-children (children-of component))
-       }
       (string? component) {:text component}
       (satisfies? IDeref component) {:cursor @component}
-      :else {:unknown "unknown"}
+      :else {
+             :tag (tag-name component)
+             :children (display-children (children-of component))
+             }
       )
      )
   )
@@ -234,7 +222,7 @@
 
 (defn with-text [text]
   (fn -text-pred [component]
-    (let [component (om/get-node component)
+    (let [component (get-node component)
           actual-text (.-textContent component)]
       (if (= text actual-text)
         true
@@ -275,7 +263,7 @@
 
 (defn with-class [class-name]
   (fn -with-class-pred [component]
-    (let [component (om/get-node component)
+    (let [component (get-node component)
           actual (.. component -className)]
       (if (.contains (.. component -classList) class-name)
         true
@@ -287,7 +275,7 @@
 
 (defn with-attr [attr-name attr-value]
   (fn -with-attr-pred [component]
-    (let [component (om/get-node component)
+    (let [component (get-node component)
           actual-value (.getAttribute component attr-name)]
       (if (= attr-value actual-value)
         true

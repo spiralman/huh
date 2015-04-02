@@ -111,3 +111,28 @@
                         (dom/div #js {})
                         (dom/span #js {})
                         (dom/div #js {}))))))
+
+(deftest containing-handles-extra-predicates-in-sub-tags
+  (is (= '(({:in "tag div"}
+            {:msg "Class name does not match"
+             :expected "div-class" :actual "other-class"}))
+         ((huh/containing
+           (huh/tag "div"
+                    (huh/with-class "div-class")))
+          (rendered-div #js {}
+                        (dom/div #js {:className "other-class"}))))))
+
+(deftest containing-handles-multiple-nesting
+  (is (= '(({:in "tag div"}
+            (({:in "tag span"}
+              {:msg "Class name does not match"
+               :expected "span-class" :actual "other-class"}))))
+         ((huh/containing
+           (huh/tag "div"
+                    (huh/with-class "div-class")
+                    (huh/containing
+                     (huh/tag "span"
+                              (huh/with-class "span-class")))))
+          (rendered-div #js {}
+                        (dom/div #js {:className "div-class"}
+                                 (dom/span #js {:className "other-class"})))))))
