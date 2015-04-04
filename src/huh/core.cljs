@@ -209,9 +209,16 @@
     )
   )
 
+(defn get-attrs [component]
+  (let [node (get-node component)
+        attributes (.-attributes node)]
+    (for [i (range (.-length attributes))]
+      (let [attr (.item attributes i)]
+        [(.-name attr) (.-value attr)]))))
+
 (defn with-prop [prop-name expected-value]
   (fn -with-prop-pred [component]
-    (let [actual-value (aget (.-props component) prop-name)]
+    (let [actual-value (aget (.. component -_renderedComponent -props) prop-name)]
       (if (not= expected-value actual-value)
         {:msg (str "Wrong value for prop '" prop-name "'")
          :expected expected-value :actual actual-value}

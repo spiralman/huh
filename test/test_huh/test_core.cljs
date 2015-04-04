@@ -6,15 +6,17 @@
             [om.dom :as dom :include-macros true]
             [huh.core :as huh]))
 
-(defn rendered-div [props & contents]
+(defn rendered-el [el props & contents]
   (huh/rendered-component
    (fn [data owner]
      (reify
        om/IRender
        (render [this#]
-         (apply dom/div props
-                contents))))
+         (apply el props contents))))
    (huh/setup-state {})))
+
+(defn rendered-div [props & contents]
+  (apply rendered-el dom/div props contents))
 
 ;; To be deleted when there is reasonable test coverage for the
 ;; library.
@@ -136,3 +138,16 @@
           (rendered-div #js {}
                         (dom/div #js {:className "div-class"}
                                  (dom/span #js {:className "other-class"})))))))
+
+(deftest with-prop-returns-true-if-prop-value-matches
+  (is (= true
+         ((huh/with-prop "value" "some-value")
+          (rendered-el dom/input #js {:value "some-value"
+                                      :onChange identity})))))
+
+(deftest with-prop-returns-error-if-prop-value-doesnt-matches
+  (is (= {:msg "Wrong value for prop 'value'"
+          :expected "some-value" :actual "other-value"}
+         ((huh/with-prop "value" "some-value")
+          (rendered-el dom/input #js {:value "other-value"
+                                      :onChange identity})))))
