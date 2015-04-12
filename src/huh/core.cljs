@@ -86,26 +86,41 @@
      )
   )
 
+(defprotocol IRendered
+  (get-node [c])
+  (get-props [c]))
+
 (defn rendered-component
   ([component state] (rendered-component component state nil))
   ([component state m]
      (let [built-c (built-component component state m)
-           dom-el (js/document.createElement "div")]
-       (js/React.addons.TestUtils.renderIntoDocument built-c)
+           dom-el (js/document.createElement "div")
+           component (js/React.addons.TestUtils.renderIntoDocument built-c)]
+       (reify
+         IRendered
+         (get-node [_] (om/get-node component))
+         (get-props [_] (.. component -_renderedComponent -props)))
      ))
   )
 
-(defn get-node [component]
-  (if (om/component? component)
-    (om/get-node component)
-    component))
+(defn rendered-element [dom-node react-element]
+  (reify
+    IRendered
+    (get-node [_] dom-node)
+    (get-props [_] (.-props react-element))))
 
-(defn children-of [component]
+(defn child-nodes [component]
   (->
    (get-node component)
    (.-children)
    (js/Array.prototype.slice.call)
    (js->clj)))
+
+(defn children-of [component]
+  (let [children #js []]
+    (.forEach js/React.Children (.-children (get-props component))
+              #(.push children %))
+    (map rendered-element (child-nodes component) (seq children))))
 
 (defn in
   ([component] (get-node component))
@@ -218,7 +233,7 @@
 
 (defn with-prop [prop-name expected-value]
   (fn -with-prop-pred [component]
-    (let [actual-value (aget (.. component -_renderedComponent -props) prop-name)]
+    (let [actual-value (aget (get-props component) prop-name)]
       (if (not= expected-value actual-value)
         {:msg (str "Wrong value for prop '" prop-name "'")
          :expected expected-value :actual actual-value}

@@ -139,6 +139,17 @@
                         (dom/div #js {:className "div-class"}
                                  (dom/span #js {:className "other-class"})))))))
 
+(deftest containing-handles-nested-with-prop
+  (is (= '(({:in "tag input"}
+            {:msg "Wrong value for prop 'value'"
+             :expected "some-value" :actual "other-value"}))
+         ((huh/containing
+           (huh/tag "input"
+                    (huh/with-prop "value" "some-value")))
+          (rendered-div #js {}
+                        (dom/input #js {:value "other-value"
+                                        :onChange identity}))))))
+
 (deftest with-prop-returns-true-if-prop-value-matches
   (is (= true
          ((huh/with-prop "value" "some-value")
