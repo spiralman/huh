@@ -88,6 +88,7 @@
 
 (defprotocol IRendered
   (get-node [c])
+  (get-rendered [c])
   (get-props [c]))
 
 (defn rendered-component
@@ -99,6 +100,7 @@
        (reify
          IRendered
          (get-node [_] (om/get-node component))
+         (get-rendered [_] (.-_renderedComponent component))
          (get-props [_] (.. component -_renderedComponent -props)))
      ))
   )
@@ -107,6 +109,7 @@
   (reify
     IRendered
     (get-node [_] dom-node)
+    (get-rendered [_] react-element)
     (get-props [_] (.-props react-element))))
 
 (defn child-nodes [component]
@@ -116,11 +119,15 @@
    (js/Array.prototype.slice.call)
    (js->clj)))
 
+(defn text? [rendered]
+  (string? (get-rendered rendered)))
+
 (defn children-of [component]
   (let [children #js []]
     (.forEach js/React.Children (.-children (get-props component))
               #(.push children %))
-    (map rendered-element (child-nodes component) (seq children))))
+    (remove text? (map rendered-element
+                       (child-nodes component) (seq children)))))
 
 (defn in
   ([component] (get-node component))
@@ -285,9 +292,9 @@
 
 (defn with-class [class-name]
   (fn -with-class-pred [component]
-    (let [component (get-node component)
-          actual (.. component -className)]
-      (if (.contains (.. component -classList) class-name)
+    (let [node (get-node component)
+          actual (.. node -className)]
+      (if (.contains (.. node -classList) class-name)
         true
         {:msg "Class name does not match" :expected class-name :actual actual}
         )

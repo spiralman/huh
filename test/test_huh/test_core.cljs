@@ -150,6 +150,37 @@
                         (dom/input #js {:value "other-value"
                                         :onChange identity}))))))
 
+(deftest containing-handles-interleaved-text
+  (is (= '(({:in "tag div"}
+            (({:in "tag span"}
+              {:msg "Class name does not match"
+               :expected "span-class" :actual "other-class"}))))
+         ((huh/containing
+           (huh/tag "div"
+                    (huh/with-class "div-class")
+                    (huh/containing
+                     (huh/tag "span"
+                              (huh/with-class "span-class")))))
+          (rendered-div #js {}
+                        (dom/div #js {:className "div-class"}
+                                 "some text"
+                                 (dom/span #js {:className "other-class"})
+                                 "other text"))))))
+
+(deftest containing-handles-textual-nodes
+  (is (= '(({:in "tag div"}
+            (({:in "tag span"}
+              {:msg "Text does not match"
+               :expected "some text" :actual "other text"}))))
+         ((huh/containing
+           (huh/tag "div"
+                    (huh/containing
+                     (huh/tag "span"
+                              (huh/with-text "some text")))))
+          (rendered-div #js {}
+                        (dom/div #js {}
+                                 (dom/span #js {} "other text")))))))
+
 (deftest with-prop-returns-true-if-prop-value-matches
   (is (= true
          ((huh/with-prop "value" "some-value")
