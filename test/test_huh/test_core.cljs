@@ -6,17 +6,15 @@
             [om.dom :as dom :include-macros true]
             [huh.core :as huh]))
 
-(defn rendered-el [el props & contents]
-  (huh/rendered-component
-   (fn [data owner]
+(defn el-component [el props & contents]
+  (fn [data owner]
      (reify
        om/IRender
        (render [this#]
-         (apply el props contents))))
-   (huh/setup-state {})))
+         (apply el props contents)))))
 
-(defn rendered-div [props & contents]
-  (apply rendered-el dom/div props contents))
+(defn div-component [props & contents]
+  (apply el-component dom/div props contents))
 
 ;; To be deleted when there is reasonable test coverage for the
 ;; library.
@@ -25,171 +23,230 @@
 
 ;; tag
 (deftest tag-returns-true-when-tag-name-matches
-  (is (= true ((huh/tag "div")
-               (rendered-div #js {})))))
+  (is (= true (huh/rendered
+               (div-component #js {}) {}
+               (huh/tag "div")))))
 
 (deftest tag-returns-error-when-tag-name-doesnt-match
-  (is (= {:msg "Tag does not match" :expected "span" :actual "div"}
-         ((huh/tag "span") (rendered-div #js {})))))
+  (is (= [{:in "rendered component"}
+          {:msg "Tag does not match" :expected "span" :actual "div"}]
+         (huh/rendered (div-component #js {}) {} (huh/tag "span")))))
 
 (deftest tag-checks-sub-tests
-  (is (= [{:in "tag div"}
-          {:msg "Text does not match" :expected "text" :actual "other"}]
-         ((huh/tag "div" (huh/with-text "text"))
-          (rendered-div #js {} "other")))))
+  (is (= [{:in "rendered component"}
+          [{:in "tag div"}
+           {:msg "Text does not match" :expected "text" :actual "other"}]]
+         (huh/rendered (div-component #js {} "other") {}
+                       (huh/tag "div" (huh/with-text "text"))))))
 
 ;; with-text
 (deftest with-text-returns-true-when-text-present
-  (is (= true ((huh/with-text "some text")
-               (rendered-div #js {} "some text")))))
+  (is (= true (huh/rendered (div-component #js {} "some text") {}
+                            (huh/with-text "some text")))))
 
 (deftest with-text-returns-error-without-match
-  (is (= {:msg "Text does not match"
-          :expected "some text" :actual "other text"}
-         ((huh/with-text "some text")
-          (rendered-div #js {} "other text")))))
+  (is (= [{:in "rendered component"}
+          {:msg "Text does not match"
+          :expected "some text" :actual "other text"}]
+         (huh/rendered (div-component #js {} "other text") {}
+                       (huh/with-text "some text")))))
 
 ;; with-class
 (deftest with-class-returns-true-when-class-matches
-  (is (= true ((huh/with-class "some-class")
-               (rendered-div #js {:className "some-class"})))))
+  (is (= true (huh/rendered (div-component #js {:className "some-class"}) {}
+                            (huh/with-class "some-class")))))
 
 (deftest with-class-returns-true-when-class-present-in-list
-  (is (= true ((huh/with-class "some-class")
-               (rendered-div #js {:className "some-class other-class"})))))
+  (is (= true (huh/rendered
+               (div-component #js {:className "some-class other-class"}) {}
+               (huh/with-class "some-class")))))
 
 (deftest with-class-returns-error-when-class-doesnt-match
-  (is (= {:msg "Class name does not match"
-          :expected "some-class" :actual "other-class"}
-         ((huh/with-class "some-class")
-          (rendered-div #js {:className "other-class"})))))
+  (is (= [{:in "rendered component"}
+          {:msg "Class name does not match"
+           :expected "some-class" :actual "other-class"}]
+         (huh/rendered (div-component #js {:className "other-class"}) {}
+                       (huh/with-class "some-class")))))
 
 (deftest with-class-returns-error-when-class-not-specified
-  (is (= {:msg "Class name does not match"
-          :expected "some-class" :actual ""}
-         ((huh/with-class "some-class") (rendered-div #js {})))))
+  (is (= [{:in "rendered component"}
+          {:msg "Class name does not match"
+           :expected "some-class" :actual ""}]
+         (huh/rendered (div-component #js {}) {}
+                       (huh/with-class "some-class")))))
 
 ;; with-attr
 (deftest with-attr-returns-true-when-attr-present
-  (is (= true ((huh/with-attr "type" "value")
-               (rendered-div #js {:type "value"})))))
+  (is (= true (huh/rendered (div-component #js {:type "value"}) {}
+                            (huh/with-attr "type" "value")))))
 
 (deftest with-attr-returns-error-when-attr-not-specified
-  (is (= {:msg "Attribute value does not match"
-          :expected "value" :actual nil
-          :attr "type"}
-         ((huh/with-attr "type" "value")
-          (rendered-div #js {})))))
+  (is (= [{:in "rendered component"}
+          {:msg "Attribute value does not match"
+           :expected "value" :actual nil
+           :attr "type"}]
+         (huh/rendered (div-component #js {}) {}
+                       (huh/with-attr "type" "value")))))
 
 (deftest with-attr-returns-error-when-attr-value-doesnt-match
-  (is (= {:msg "Attribute value does not match"
-          :expected "value" :actual "other"
-          :attr "type"}
-         ((huh/with-attr "type" "value")
-          (rendered-div #js {:type "other"})))))
+  (is (= [{:in "rendered component"}
+          {:msg "Attribute value does not match"
+           :expected "value" :actual "other"
+           :attr "type"}]
+         (huh/rendered (div-component #js {:type "other"}) {}
+                       (huh/with-attr "type" "value")))))
+
+;; with-prop
+(deftest with-prop-returns-true-if-prop-value-matches
+  (is (= true
+         (huh/rendered (el-component dom/input #js {:value "some-value"
+                                                    :onChange identity})
+                       {}
+                       (huh/with-prop "value" "some-value")))))
+
+(deftest with-prop-returns-error-if-prop-value-doesnt-matches
+  (is (= [{:in "rendered component"}
+          {:msg "Wrong value for prop 'value'"
+           :expected "some-value" :actual "other-value"}]
+         (huh/rendered (el-component dom/input #js {:value "other-value"
+                                                    :onChange identity})
+                       {}
+                       (huh/with-prop "value" "some-value")))))
 
 ;; containing
 (deftest containing-returns-true-if-child-assertions-and-count-match
-  (is (= true ((huh/containing (huh/tag "div") (huh/tag "div"))
-               (rendered-div #js {} (dom/div #js {}) (dom/div #js {}))))))
+  (is (= true (huh/rendered
+               (div-component #js {} (dom/div #js {}) (dom/div #js {}))
+               {}
+               (huh/containing (huh/tag "div") (huh/tag "div"))))))
 
 (deftest containing-returns-error-if-child-count-doesnt-match
-  (is (= {:msg "Wrong number of child elements"
-          :expected 2 :actual 1
-          :actual-children '({:tag "div" :children ()})}
-         ((huh/containing (huh/tag "div") (huh/tag "div"))
-          (rendered-div #js {} (dom/div #js {}))))))
-
-(defn stringify-comp [comp]
-  (.stringify js/JSON comp))
+  (is (= [{:in "rendered component"}
+          {:msg "Wrong number of child elements"
+           :expected 2 :actual 1
+           :actual-children '({:tag "div" :children ()})}]
+         (huh/rendered (div-component #js {} (dom/div #js {})) {}
+                       (huh/containing (huh/tag "div") (huh/tag "div"))))))
 
 (deftest containing-returns-errors-if-child-predicate-fails
-  (is (= '({:msg "Tag does not match"
-            :expected "span" :actual "div"}
-           {:msg "Tag does not match"
-            :expected "span" :actual "div"})
-         ((huh/containing (huh/tag "span") (huh/tag "span") (huh/tag "span"))
-          (rendered-div #js {}
-                        (dom/div #js {})
-                        (dom/span #js {})
-                        (dom/div #js {}))))))
+  (is (= [{:in "rendered component"}
+          '({:msg "Tag does not match"
+             :expected "span" :actual "div"}
+            {:msg "Tag does not match"
+             :expected "span" :actual "div"})]
+         (huh/rendered (div-component #js {}
+                                      (dom/div #js {})
+                                      (dom/span #js {})
+                                      (dom/div #js {}))
+                       {}
+                       (huh/containing (huh/tag "span")
+                                       (huh/tag "span")
+                                       (huh/tag "span"))))))
 
 (deftest containing-handles-extra-predicates-in-sub-tags
-  (is (= '(({:in "tag div"}
-            {:msg "Class name does not match"
-             :expected "div-class" :actual "other-class"}))
-         ((huh/containing
-           (huh/tag "div"
-                    (huh/with-class "div-class")))
-          (rendered-div #js {}
-                        (dom/div #js {:className "other-class"}))))))
+  (is (= '({:in "rendered component"}
+           (({:in "tag div"}
+             {:msg "Class name does not match"
+              :expected "div-class" :actual "other-class"})))
+         (huh/rendered (div-component #js {}
+                                      (dom/div #js {:className "other-class"}))
+                       {}
+                       (huh/containing
+                        (huh/tag "div"
+                                 (huh/with-class "div-class")))))))
 
 (deftest containing-handles-multiple-nesting
-  (is (= '(({:in "tag div"}
-            (({:in "tag span"}
-              {:msg "Class name does not match"
-               :expected "span-class" :actual "other-class"}))))
-         ((huh/containing
+  (is (= '({:in "rendered component"}
+           (({:in "tag div"}
+             (({:in "tag span"}
+               {:msg "Class name does not match"
+                :expected "span-class" :actual "other-class"})))))
+         (huh/rendered
+          (div-component #js {}
+                         (dom/div #js {:className "div-class"}
+                                  (dom/span #js {:className "other-class"})))
+          {}
+          (huh/containing
            (huh/tag "div"
                     (huh/with-class "div-class")
                     (huh/containing
                      (huh/tag "span"
-                              (huh/with-class "span-class")))))
-          (rendered-div #js {}
-                        (dom/div #js {:className "div-class"}
-                                 (dom/span #js {:className "other-class"})))))))
+                              (huh/with-class "span-class")))))))))
 
 (deftest containing-handles-nested-with-prop
-  (is (= '(({:in "tag input"}
-            {:msg "Wrong value for prop 'value'"
-             :expected "some-value" :actual "other-value"}))
-         ((huh/containing
+  (is (= '({:in "rendered component"}
+           (({:in "tag input"}
+             {:msg "Wrong value for prop 'value'"
+              :expected "some-value" :actual "other-value"})))
+         (huh/rendered
+          (div-component #js {}
+                         (dom/input #js {:value "other-value"
+                                         :onChange identity}))
+          {}
+          (huh/containing
            (huh/tag "input"
-                    (huh/with-prop "value" "some-value")))
-          (rendered-div #js {}
-                        (dom/input #js {:value "other-value"
-                                        :onChange identity}))))))
+                    (huh/with-prop "value" "some-value")))))))
 
 (deftest containing-handles-interleaved-text
-  (is (= '(({:in "tag div"}
-            (({:in "tag span"}
-              {:msg "Class name does not match"
-               :expected "span-class" :actual "other-class"}))))
-         ((huh/containing
+  (is (= '({:in "rendered component"}
+           (({:in "tag div"}
+             (({:in "tag span"}
+               {:msg "Class name does not match"
+                :expected "span-class" :actual "other-class"})))))
+         (huh/rendered
+          (div-component #js {}
+                         (dom/div #js {:className "div-class"}
+                                  "some text"
+                                  (dom/span #js {:className "other-class"})
+                                  "other text"))
+          {}
+          (huh/containing
            (huh/tag "div"
                     (huh/with-class "div-class")
                     (huh/containing
                      (huh/tag "span"
-                              (huh/with-class "span-class")))))
-          (rendered-div #js {}
-                        (dom/div #js {:className "div-class"}
-                                 "some text"
-                                 (dom/span #js {:className "other-class"})
-                                 "other text"))))))
+                              (huh/with-class "span-class")))))))))
 
 (deftest containing-handles-textual-nodes
-  (is (= '(({:in "tag div"}
-            (({:in "tag span"}
-              {:msg "Text does not match"
-               :expected "some text" :actual "other text"}))))
-         ((huh/containing
+  (is (= '({:in "rendered component"}
+           (({:in "tag div"}
+             (({:in "tag span"}
+               {:msg "Text does not match"
+                :expected "some text" :actual "other text"})))))
+         (huh/rendered
+          (div-component #js {}
+                         (dom/div #js {}
+                                  (dom/span #js {} "other text")))
+          {}
+          (huh/containing
            (huh/tag "div"
                     (huh/containing
                      (huh/tag "span"
-                              (huh/with-text "some text")))))
-          (rendered-div #js {}
-                        (dom/div #js {}
-                                 (dom/span #js {} "other text")))))))
+                              (huh/with-text "some text")))))))))
 
-(deftest with-prop-returns-true-if-prop-value-matches
-  (is (= true
-         ((huh/with-prop "value" "some-value")
-          (rendered-el dom/input #js {:value "some-value"
-                                      :onChange identity})))))
+(defn some-component [data owner]
+  (reify
+    om/IRender
+    (render [this]
+      (dom/div #js {}))))
 
-(deftest with-prop-returns-error-if-prop-value-doesnt-matches
-  (is (= {:msg "Wrong value for prop 'value'"
-          :expected "some-value" :actual "other-value"}
-         ((huh/with-prop "value" "some-value")
-          (rendered-el dom/input #js {:value "other-value"
-                                      :onChange identity})))))
+;; (deftest sub-component-returns-true-if-sub-component-and-cursor-and-m-match
+;;   (println "interesting")
+;;   (is (= true
+;;          ((huh/containing
+;;            (huh/sub-component some-component
+;;                               {:cursor "value"}
+;;                               {:opts {:some-opt 1}}))
+;;           (rendered-div (om/build some-component
+;;                                   {:cursor "value"}
+;;                                   {:opts {:some-opt 1}})))))
+;;   (println "done"))
+
+;; (deftest sub-component-returns-true-if-sub-component-and-cursor-match-ignoring-m
+;;   (is (= true
+;;          ((huh/containing
+;;            (huh/sub-component some-component
+;;                               {:cursor "value"}))
+;;           (rendered-div (om/build some-component
+;;                                   {:cursor "value"}
+;;                                   {:opts {:some-opt 1}}))))))
