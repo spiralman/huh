@@ -11,10 +11,24 @@
      (reify
        om/IRender
        (render [this#]
-         (apply el props contents)))))
+         (apply el props (map #(if (fn? %) (%)
+                                   %)
+                              contents))))))
 
 (defn div-component [props & contents]
   (apply el-component dom/div props contents))
+
+(defn some-component [data owner]
+  (reify
+    om/IRender
+    (render [this]
+      (dom/div #js {}))))
+
+(defn other-component [data owner]
+  (reify
+    om/IRender
+    (render [this]
+      (dom/div #js {}))))
 
 ;; To be deleted when there is reasonable test coverage for the
 ;; library.
@@ -224,29 +238,87 @@
                      (huh/tag "span"
                               (huh/with-text "some text")))))))))
 
-(defn some-component [data owner]
-  (reify
-    om/IRender
-    (render [this]
-      (dom/div #js {}))))
+(deftest containing-prints-component-name-when-count-mismatched
+  (is (= [{:in "rendered component"}
+          {:msg "Wrong number of child elements"
+           :expected 2 :actual 1
+           :actual-children '({:sub-component
+                               "test$test_huh$core$some_component"})}]
+         (huh/rendered (div-component #js {}
+                                      #(om/build some-component
+                                                 {:cursor "value"}))
+                       {}
+                       (huh/containing (huh/tag "span")
+                                       (huh/tag "span"))))))
 
-;; (deftest sub-component-returns-true-if-sub-component-and-cursor-and-m-match
-;;   (println "interesting")
-;;   (is (= true
-;;          ((huh/containing
-;;            (huh/sub-component some-component
-;;                               {:cursor "value"}
-;;                               {:opts {:some-opt 1}}))
-;;           (rendered-div (om/build some-component
-;;                                   {:cursor "value"}
-;;                                   {:opts {:some-opt 1}})))))
-;;   (println "done"))
+;; sub-component
+(deftest sub-component-returns-true-if-sub-component-and-cursor-and-m-match
+  (is (= true
+         (huh/rendered
+          (div-component #js {}
+                         #(om/build some-component
+                                    {:cursor "value"}
+                                    {:opts {:some-opt 1}}))
+          {}
+          (huh/containing
+           (huh/sub-component some-component
+                              {:cursor "value"}
+                              {:opts {:some-opt 1}}))))))
 
-;; (deftest sub-component-returns-true-if-sub-component-and-cursor-match-ignoring-m
-;;   (is (= true
-;;          ((huh/containing
-;;            (huh/sub-component some-component
-;;                               {:cursor "value"}))
-;;           (rendered-div (om/build some-component
-;;                                   {:cursor "value"}
-;;                                   {:opts {:some-opt 1}}))))))
+(deftest sub-component-returns-true-if-sub-component-and-cursor-match-ignoring-m
+  (is (= true
+         (huh/rendered
+          (div-component #js {}
+                         #(om/build some-component
+                                    {:cursor "value"}
+                                    {:opts {:some-opt 1}}))
+          {}
+          (huh/containing
+           (huh/sub-component some-component
+                              {:cursor "value"}))))))
+
+(deftest sub-component-returns-error-when-component-does-not-match
+  (is (= '({:in "rendered component"}
+           ({:msg "sub-component does not match"
+             :expected "test$test_huh$core$some_component"
+             :actual "test$test_huh$core$other_component"}))
+         (huh/rendered
+          (div-component #js {}
+                         #(om/build other-component
+                                    {:cursor "value"}
+                                    {:opts {:some-opt 1}}))
+          {}
+          (huh/containing
+           (huh/sub-component some-component
+                              {:cursor "value"}))))))
+
+(deftest sub-component-returns-error-when-cursor-does-not-match
+  (is (= '({:in "rendered component"}
+           ({:msg "sub-component cursor does not match for test$test_huh$core$some_component"
+             :expected {:cursor "value"}
+             :actual {:cursor "other value"}}))
+         (huh/rendered
+          (div-component #js {}
+                         #(om/build some-component
+                                    {:cursor "other value"}
+                                    {:opts {:some-opt 1}}))
+          {}
+          (huh/containing
+           (huh/sub-component some-component
+                              {:cursor "value"}))))))
+
+(deftest sub-component-returns-error-when-m-does-not-match
+  (is (= '({:in "rendered component"}
+           ({:msg "sub-component m does not match for test$test_huh$core$some_component"
+             :expected {:opts {:some-opt 1}}
+             :actual {:opts {:other-opt 2}}}))
+         (huh/rendered
+          (div-component #js {}
+                         #(om/build some-component
+                                    {:cursor "value"}
+                                    {:opts {:other-opt 2}}))
+          {}
+          (huh/containing
+           (huh/sub-component some-component
+                              {:cursor "value"}
+                              {:opts {:some-opt 1}}))))))

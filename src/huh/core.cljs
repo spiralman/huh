@@ -10,6 +10,10 @@
    )
   )
 
+(defprotocol IRendered
+  (get-node [c])
+  (get-rendered [c])
+  (get-props [c]))
 
 (defn do-report [& args]
   (apply t/do-report args)
@@ -18,44 +22,36 @@
 (defn component-name [component]
   ;; component is a function; this isn't really standardized JS, but
   ;; it works in most browsers anyway.
-  (.-name component)
-  )
-
-(defn -sub-component [data owner]
-  (reify
-    om/IRender
-    (render [this]
-      (dom/div #js {:className "huh-sub-component"})
-      )
-    )
-  )
+  (.-name component))
 
 (defn -instrument [sub-component cursor m]
-  (om/build* -sub-component
-             {}
-             {:init-state
-              {:sub-component sub-component
-               :cursor cursor
-               :m m}
-              })
-  )
+  (dom/div #js {:className "huh-sub-component"
+                :data-sub-component sub-component
+                :data-cursor cursor
+                :data-m m}))
 
 (defn decode-sub-component [sub-component]
-  (let [state (om/get-state sub-component)]
+  (let [props (get-props sub-component)
+        cursor (aget props "data-cursor")]
     {
-     :sub-component (:sub-component state)
-     :cursor (if (satisfies? IDeref (:cursor state))
-               @(:cursor state)
-               (:cursor state)
+     :sub-component (aget props "data-sub-component")
+     :cursor (if (satisfies? IDeref cursor)
+               @cursor
+               cursor
                )
-     :m (:m state)
+     :m (aget props "data-m")
      }
     )
   )
 
-(defn sub-component? [component]
-  (= "huh-sub-component" (.. component -className))
-  )
+(defn sub-component? [node]
+  (.contains (.. node -classList) "huh-sub-component"))
+
+(defn rendered-sub-component [dom-node component]
+  (reify IRendered
+    (get-node [_] dom-node)
+    (get-rendered [_] component)
+    (get-props [_] (.. component -props))))
 
 (defn test-predicates
   ;; Checks all predicates against a component, returns true if they
@@ -86,11 +82,6 @@
      )
   )
 
-(defprotocol IRendered
-  (get-node [c])
-  (get-rendered [c])
-  (get-props [c]))
-
 (defn rendered-component
   ([component state] (rendered-component component state nil))
   ([component state m]
@@ -102,15 +93,17 @@
          (get-node [_] (om/get-node component))
          (get-rendered [_] (.-_renderedComponent component))
          (get-props [_] (.. component -_renderedComponent -props)))
-     ))
+       ))
   )
 
 (defn rendered-element [dom-node react-element]
-  (reify
-    IRendered
-    (get-node [_] dom-node)
-    (get-rendered [_] react-element)
-    (get-props [_] (.-props react-element))))
+  (if (sub-component? dom-node)
+    (rendered-sub-component dom-node react-element)
+    (reify
+      IRendered
+      (get-node [_] dom-node)
+      (get-rendered [_] react-element)
+      (get-props [_] (.-props react-element)))))
 
 (defn child-nodes [component]
   (->
@@ -154,8 +147,7 @@
     (binding [om/*instrument* -instrument]
       (let [rendered-comp (rendered-component component state m)]
         (test-predicates tests rendered-comp {:in "rendered component"})
-        )
-      )
+        ))
     )
   )
 
@@ -188,9 +180,11 @@
 (defn display-child
   ([component]
      (cond
-      (sub-component? component) {:sub-component
-                                  (component-name
-                                   (om/get-state component :sub-component))}
+      (sub-component? (get-node component)) {:sub-component
+                                             (->
+                                              (decode-sub-component component)
+                                              (:sub-component)
+                                              (component-name))}
       (string? component) {:text component}
       (satisfies? IDeref component) {:cursor @component}
       :else {
