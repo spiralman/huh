@@ -1,6 +1,7 @@
 (ns test.test-huh.core
   (:require-macros [cemerick.cljs.test
-                    :refer (is deftest with-test run-tests testing test-var)])
+                    :refer [is deftest with-test run-tests testing test-var
+                            done]])
   (:require [cemerick.cljs.test :as t]
             [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
@@ -29,11 +30,6 @@
     om/IRender
     (render [this]
       (dom/div #js {}))))
-
-;; To be deleted when there is reasonable test coverage for the
-;; library.
-(deftest test-coverage-is-good-enough
-  (is (= 2 3)))
 
 ;; tag
 (deftest tag-returns-true-when-tag-name-matches
@@ -361,3 +357,15 @@
                          "#grandchild")]
     (is (= "SPAN" (.-tagName selected)))
     (is (= "grandchild" (.-id selected)))))
+
+(deftest ^:async after-event-triggers-event-and-calls-callback-asynchronously
+  (let [event-args (atom nil)
+        state (huh/setup-state {})]
+    (huh/after-event
+     :click #js {:event "args"}
+     (huh/in (huh/rendered-component
+              (div-component #js {:onClick #(reset! event-args %)}) state))
+     (fn [clicked-node]
+       (is (= "DIV" (.-tagName clicked-node)))
+       (is (= "args" (aget @event-args "event")))
+       (done)))))
