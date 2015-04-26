@@ -184,8 +184,8 @@
                         (decode-sub-component component)
                         (:sub-component)
                         (component-name))}
-      {:tag (tag-name component)
-       :children (display-children (children-of component))})))
+       {:tag (tag-name component)
+        :children (display-children (children-of component))})))
 
 (defn display-children [children]
   (if (multiple-components? children)
@@ -216,13 +216,6 @@
       )
     )
   )
-
-(defn get-attrs [component]
-  (let [node (get-node component)
-        attributes (.-attributes node)]
-    (for [i (range (.-length attributes))]
-      (let [attr (.item attributes i)]
-        [(.-name attr) (.-value attr)]))))
 
 (defn with-prop [prop-name expected-value]
   (fn -with-prop-pred [component]

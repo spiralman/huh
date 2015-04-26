@@ -333,3 +333,31 @@
            (huh/sub-component some-component
                               {:cursor "value"}
                               {:opts {:some-opt 1}}))))))
+
+;; in
+(deftest in-returns-dom-node-without-selector
+  (let [state (huh/setup-state {})
+        selected (huh/in (huh/rendered-component
+                          (div-component #js {:id "root-component"}) state))]
+    (is (= "DIV" (.-tagName selected)))
+    (is (= "root-component" (.-id selected)))))
+
+(deftest in-returns-dom-node-with-empty-selector
+  (let [state (huh/setup-state {})
+        selected (huh/in (huh/rendered-component
+                          (div-component #js {:id "root-component"}) state)
+                         "")]
+    (is (= "DIV" (.-tagName selected)))
+    (is (= "root-component" (.-id selected)))))
+
+(deftest in-returns-inner-dom-node-with-selector
+  (let [state (huh/setup-state {})
+        selected (huh/in (huh/rendered-component
+                          (div-component #js {:id "root-component"}
+                                         (dom/div #js {:id "child"}
+                                                  (dom/span
+                                                   #js {:id "grandchild"})))
+                          state)
+                         "#grandchild")]
+    (is (= "SPAN" (.-tagName selected)))
+    (is (= "grandchild" (.-id selected)))))
