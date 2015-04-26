@@ -105,6 +105,23 @@
       (get-rendered [_] react-element)
       (get-props [_] (.-props react-element)))))
 
+(defn -extract-m [tests]
+  (if (map? (first tests))
+    [(first tests) (rest tests)]
+    [nil tests]
+    )
+  )
+
+(defn rendered [component value & tests]
+  (let [[m tests] (-extract-m tests)
+        state (setup-state value)]
+    (binding [om/*instrument* -instrument]
+      (let [rendered-comp (rendered-component component state m)]
+        (test-predicates tests rendered-comp {:in "rendered component"})
+        ))
+    )
+  )
+
 (defn child-nodes [component]
   (->
    (get-node component)
@@ -134,23 +151,6 @@
      )
   )
 
-(defn -extract-m [tests]
-  (if (map? (first tests))
-    [(first tests) (rest tests)]
-    [nil tests]
-    )
-  )
-
-(defn rendered [component value & tests]
-  (let [[m tests] (-extract-m tests)
-        state (setup-state value)]
-    (binding [om/*instrument* -instrument]
-      (let [rendered-comp (rendered-component component state m)]
-        (test-predicates tests rendered-comp {:in "rendered component"})
-        ))
-    )
-  )
-
 (defn tag-name [component]
   (->
    (get-node component)
@@ -171,10 +171,6 @@
     )
   )
 
-(defn multiple-components? [component]
-  (sequential? component)
-  )
-
 (declare display-children)
 
 (defn display-child
@@ -188,11 +184,7 @@
         :children (display-children (children-of component))})))
 
 (defn display-children [children]
-  (if (multiple-components? children)
-    (map #(display-child %) children)
-    (display-child children)
-    )
-  )
+  (map #(display-child %) children))
 
 (defn containing [& tests]
   (fn -containing-pred [component]
