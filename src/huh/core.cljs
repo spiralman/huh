@@ -179,21 +179,13 @@
 
 (defn display-child
   ([component]
-     (cond
-      (sub-component? (get-node component)) {:sub-component
-                                             (->
-                                              (decode-sub-component component)
-                                              (:sub-component)
-                                              (component-name))}
-      (string? component) {:text component}
-      (satisfies? IDeref component) {:cursor @component}
-      :else {
-             :tag (tag-name component)
-             :children (display-children (children-of component))
-             }
-      )
-     )
-  )
+     (if (sub-component? (get-node component))
+       {:sub-component (->
+                        (decode-sub-component component)
+                        (:sub-component)
+                        (component-name))}
+      {:tag (tag-name component)
+       :children (display-children (children-of component))})))
 
 (defn display-children [children]
   (if (multiple-components? children)

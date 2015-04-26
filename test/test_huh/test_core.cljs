@@ -251,6 +251,17 @@
                        (huh/containing (huh/tag "span")
                                        (huh/tag "span"))))))
 
+(deftest containing-handles-text-when-child-count-does-not-match
+  (is (= [{:in "rendered component"}
+          {:msg "Wrong number of child elements"
+           :expected 2 :actual 1
+           :actual-children '({:tag "div" :children ()})}]
+         (huh/rendered (div-component #js {}
+                                      (dom/div #js {} "some text")
+                                      "more text")
+                       {}
+                       (huh/containing (huh/tag "div") (huh/tag "div"))))))
+
 ;; sub-component
 (deftest sub-component-returns-true-if-sub-component-and-cursor-and-m-match
   (is (= true
