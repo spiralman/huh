@@ -1,4 +1,4 @@
-(defproject huh "0.9.0"
+(defproject huh "0.9.1"
   :description "A UnitTest assertion library for Om"
   :url "https://github.com/spiralman/huh"
   :license {:name "MIT"

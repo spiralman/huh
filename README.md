@@ -23,7 +23,7 @@ Using Leiningen, define a `project.clj`:
                  [org.clojure/clojurescript "0.0-3126"]
                  [org.omcljs/om "0.8.8" :exclusions [cljsjs/react]]
                  [cljsjs/react-with-addons "0.12.2-4"]
-				 [spiralman/huh "0.9.0"]
+				 [huh "0.9.1"]
   :plugins [[lein-cljsbuild "1.0.5"]
             [com.cemerick/clojurescript.test "0.3.3"]]
   :cljsbuild {
