@@ -1,7 +1,8 @@
 (ns test.test-huh.core
   (:require-macros [cemerick.cljs.test
                     :refer [is deftest with-test run-tests testing test-var
-                            done]])
+                            done]]
+                   [huh.core :refer [with-rendered]])
   (:require [cemerick.cljs.test :as t]
             [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
@@ -247,6 +248,18 @@
                        (huh/containing (huh/tag "span")
                                        (huh/tag "span"))))))
 
+(deftest containing-ignores-nil-children
+  (is (= true (huh/rendered
+               (div-component #js {}
+                              (dom/div #js {})
+                              (if (= 2 3)
+                                (dom/div "won't exist"))
+                              #(om/build some-component {}))
+               {}
+               (huh/containing
+                (huh/tag "div")
+                (huh/sub-component some-component {}))))))
+
 (deftest containing-handles-text-when-child-count-does-not-match
   (is (= [{:in "rendered component"}
           {:msg "Wrong number of child elements"
@@ -369,3 +382,10 @@
        (is (= "DIV" (.-tagName clicked-node)))
        (is (= "args" (aget @event-args "event")))
        (done)))))
+
+;; with-rendered
+(deftest with-rendered-executes-assertion-and-provides-parameter
+  (is (= true
+         ((with-rendered [arg]
+            #(= arg :input))
+          :input))))

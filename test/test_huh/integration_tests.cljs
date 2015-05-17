@@ -26,3 +26,34 @@
                  (huh/tag "span"
                           (huh/with-class "second")
                           (huh/with-text "Second")))))))
+
+(defn inner [data owner {:keys [outer-owner]}]
+  (reify
+    om/IRender
+    (render [this]
+      (dom/div #js {:className "inner"}))))
+
+(defn outer [data owner]
+  (reify
+    om/IRender
+    (render [this]
+      (dom/div #js {:className "outer"}
+               (dom/h2 #js {:className "heading"})
+               (if (= 1 2)
+                 (dom/div "wrong!"))
+               (om/build inner {}
+                         {:opts {:outer-owner owner}})))))
+
+;; with-rendered
+(deftest with-rendered-binds-name-to-rendered-component
+  (is (rendered
+       outer {}
+       (huh/with-rendered [comp]
+         (huh/tag "div"
+                  (huh/with-class "outer")
+                  (huh/containing
+                   (huh/tag "h2"
+                            (huh/with-class "heading"))
+                   (huh/sub-component inner {}
+                                      {:opts {:outer-owner
+                                              (.-_owner (huh/get-rendered comp))}})))))))

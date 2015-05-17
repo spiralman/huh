@@ -137,7 +137,7 @@
     (.forEach js/React.Children (.-children (get-props component))
               #(.push children %))
     (remove text? (map rendered-element
-                       (child-nodes component) (seq children)))))
+                       (child-nodes component) (remove nil? (seq children))))))
 
 (defn in
   ([component] (get-node component))
