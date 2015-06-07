@@ -389,3 +389,17 @@
          ((with-rendered [arg]
             #(= arg :input))
           :input))))
+
+(defn stateful-component [data owner]
+  (reify
+    om/IInitState
+    (init-state [this]
+      {:value 1})
+    om/IRenderState
+    (render-state [this state]
+      (dom/div #js {}))))
+
+(deftest get-state-returns-state-of-rendered-component
+  (let [rendered (huh/rendered-component stateful-component
+                                         (huh/setup-state {}))]
+    (is (= {:value 1} (huh/get-state rendered)))))

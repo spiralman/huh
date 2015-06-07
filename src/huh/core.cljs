@@ -13,7 +13,11 @@
 (defprotocol IRendered
   (get-node [c])
   (get-rendered [c])
-  (get-props [c]))
+  (get-props [c])
+  (get-component [c]))
+
+(defn get-state [rendered]
+  (om/get-state (get-component rendered)))
 
 (defn do-report [& args]
   (apply t/do-report args)
@@ -51,7 +55,8 @@
   (reify IRendered
     (get-node [_] dom-node)
     (get-rendered [_] component)
-    (get-props [_] (.. component -props))))
+    (get-props [_] (.. component -props))
+    (get-component [_] nil)))
 
 (defn test-predicates
   ;; Checks all predicates against a component, returns true if they
@@ -92,7 +97,8 @@
          IRendered
          (get-node [_] (om/get-node component))
          (get-rendered [_] (.-_renderedComponent component))
-         (get-props [_] (.. component -_renderedComponent -props)))
+         (get-props [_] (.. component -_renderedComponent -props))
+         (get-component [_] component))
        ))
   )
 
@@ -103,7 +109,8 @@
       IRendered
       (get-node [_] dom-node)
       (get-rendered [_] react-element)
-      (get-props [_] (.-props react-element)))))
+      (get-props [_] (.-props react-element))
+      (get-component [_] nil))))
 
 (defn -extract-m [tests]
   (if (map? (first tests))

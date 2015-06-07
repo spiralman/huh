@@ -1,6 +1,6 @@
 (ns test.test-huh.integration-tests
   (:require-macros [cemerick.cljs.test
-                    :refer (is deftest with-test run-tests testing test-var)])
+                    :refer (is deftest with-test run-tests testing test-var done)])
   (:require [cemerick.cljs.test :as t]
             [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
@@ -57,3 +57,33 @@
                    (huh/sub-component inner {}
                                       {:opts {:outer-owner
                                               (.-_owner (huh/get-rendered comp))}})))))))
+
+(defn stateful [data owner]
+  (reify
+    om/IInitState
+    (init-state [this]
+      {:value 1})
+    om/IRenderState
+    (render-state [this state]
+      (dom/div #js {:className "stateful"}
+               (dom/span #js {:className "state-value"}
+                         (str (:value state)))
+               (dom/button #js {:className "state-inc"
+                                :type "button"
+                                :onClick (fn [_]
+                                           (om/set-state!
+                                            owner
+                                            :value
+                                            (inc (:value state))))})))))
+
+
+;; state changing
+(deftest ^:async state-changes-on-click
+  (let [rendered-component (huh/rendered-component stateful
+                                                   (huh/setup-state {}))]
+    (huh/after-event
+     :click #js {:target #js {}}
+     (huh/in rendered-component "button")
+     (fn [_]
+       (is (= 2 (:value (huh/get-state rendered-component))))
+       (done)))))
