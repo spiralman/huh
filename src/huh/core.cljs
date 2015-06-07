@@ -16,8 +16,9 @@
   (get-props [c])
   (get-component [c]))
 
-(defn get-state [rendered]
-  (om/get-state (get-component rendered)))
+(defn get-state
+  ([rendered] (om/get-state (get-component rendered)))
+  ([rendered korks] (om/get-state (get-component rendered) korks)))
 
 (defn do-report [& args]
   (apply t/do-report args)

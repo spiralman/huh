@@ -403,3 +403,8 @@
   (let [rendered (huh/rendered-component stateful-component
                                          (huh/setup-state {}))]
     (is (= {:value 1} (huh/get-state rendered)))))
+
+(deftest get-state-returns-keys-of-state-of-rendered-component
+  (let [rendered (huh/rendered-component stateful-component
+                                         (huh/setup-state {}))]
+    (is (= 1 (huh/get-state rendered :value)))))
