@@ -71,7 +71,7 @@ looks like:
 For a more complete example of testing a medium-sized application, see
 the "Burgerboard" application, which was the original impetus for the
 library:
-https://github.com/spiralman/burgerboard/tree/master/web-client/src/burgerboard_web
+https://github.com/spiralman/burgerboard/tree/master/web-client/test/test_burgerboard
 
 ## Why the Name? ##
 
