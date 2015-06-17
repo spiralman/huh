@@ -11,31 +11,38 @@
   )
 
 (defprotocol IRendered
-  (get-node [c])
-  (get-rendered [c])
-  (get-props [c])
-  (get-component [c]))
+  "Interface used to define all rendered components or elements. It is
+returned by `rendered-component, and passed to all the test predicate
+functions."
+  (get-node [c] "Returns the DOM node corresponding to the Component or Element")
+  (get-rendered [c] "Returns the Component or Element that was rendered")
+  (get-props [c] "Returns the props for the rendered component")
+  (get-component [c] "Returns the Om component, or nil"))
 
 (defn get-state
+  "Accesses the state of a rendered Om component. If `korks` is
+specified, it returns the value in the state at that key, as by
+`get-in`. May only be called on a component returned by
+`rendered-component`."
   ([rendered] (om/get-state (get-component rendered)))
   ([rendered korks] (om/get-state (get-component rendered) korks)))
 
-(defn do-report [& args]
+(defn ^:no-doc do-report [& args]
   (apply t/do-report args)
   )
 
-(defn component-name [component]
+(defn ^:no-doc component-name [component]
   ;; component is a function; this isn't really standardized JS, but
   ;; it works in most browsers anyway.
   (.-name component))
 
-(defn -instrument [sub-component cursor m]
+(defn ^:no-doc -instrument [sub-component cursor m]
   (dom/div #js {:className "huh-sub-component"
                 :data-sub-component sub-component
                 :data-cursor cursor
                 :data-m m}))
 
-(defn decode-sub-component [sub-component]
+(defn ^:no-doc decode-sub-component [sub-component]
   (let [props (get-props sub-component)
         cursor (aget props "data-cursor")]
     {
@@ -49,17 +56,17 @@
     )
   )
 
-(defn sub-component? [node]
+(defn ^:no-doc sub-component? [node]
   (.contains (.. node -classList) "huh-sub-component"))
 
-(defn rendered-sub-component [dom-node component]
+(defn ^:no-doc rendered-sub-component [dom-node component]
   (reify IRendered
     (get-node [_] dom-node)
     (get-rendered [_] component)
     (get-props [_] (.. component -props))
     (get-component [_] nil)))
 
-(defn test-predicates
+(defn ^:no-doc test-predicates
   ;; Checks all predicates against a component, returns true if they
   ;; all pass, or a seq of failures if any failed.
   [preds component msg]
@@ -72,7 +79,11 @@
     )
   )
 
-(defn setup-state [value]
+(defn setup-state
+  "Builds an Om state object from a raw ClojureScript data structure,
+  or an atom containing a data structure. State passed to
+  `rendered-component` should be built using this function."
+  [value]
   (om/setup
    (if (satisfies? IAtom value)
      value
@@ -80,7 +91,7 @@
    (gensym) nil)
   )
 
-(defn built-component
+(defn ^:no-doc built-component
   ([component state] (built-component component state nil))
   ([component state m]
      (binding [om/*state* state]
@@ -89,6 +100,8 @@
   )
 
 (defn rendered-component
+  "Renders a component into the DOM and returns it, but does not run
+assertions against it. Useful for testing stateful components."
   ([component state] (rendered-component component state nil))
   ([component state m]
      (let [built-c (built-component component state m)
@@ -103,7 +116,7 @@
        ))
   )
 
-(defn rendered-element [dom-node react-element]
+(defn ^:no-doc rendered-element [dom-node react-element]
   (if (sub-component? dom-node)
     (rendered-sub-component dom-node react-element)
     (reify
@@ -113,14 +126,23 @@
       (get-props [_] (.-props react-element))
       (get-component [_] nil))))
 
-(defn -extract-m [tests]
+(defn ^:no-doc -extract-m [tests]
   (if (map? (first tests))
     [(first tests) (rest tests)]
     [nil tests]
     )
   )
 
-(defn rendered [component value & tests]
+(defn rendered
+  "Renders a component using the provided data (and an optional `m`
+  value) and then runs assertions against that component.
+
+Normally, this is used inside the `is` macro in `clojurescript.test`:
+
+    (is (rendered component {:state \"value\"}
+                  (tag \"DIV\")))"
+  [component
+  value & tests]
   (let [[m tests] (-extract-m tests)
         state (setup-state value)]
     (binding [om/*instrument* -instrument]
@@ -130,17 +152,17 @@
     )
   )
 
-(defn child-nodes [component]
+(defn ^:no-doc child-nodes [component]
   (->
    (get-node component)
    (.-children)
    (js/Array.prototype.slice.call)
    (js->clj)))
 
-(defn text? [rendered]
+(defn ^:no-doc text? [rendered]
   (string? (get-rendered rendered)))
 
-(defn children-of [component]
+(defn ^:no-doc children-of [component]
   (let [children #js []]
     (.forEach js/React.Children (.-children (get-props component))
               #(.push children %))
@@ -148,6 +170,10 @@
                        (child-nodes component) (remove nil? (seq children))))))
 
 (defn in
+  "Returns the first DOM element within a given component that matches the selector.
+
+If the selector is empty or not provided, it returns the root DOM node
+of the component."
   ([component] (get-node component))
   ([component selector]
      (let [component-node (get-node component)]
@@ -159,13 +185,17 @@
      )
   )
 
-(defn tag-name [component]
+(defn ^:no-doc tag-name [component]
   (->
    (get-node component)
    (.-tagName)
    (lower-case)))
 
-(defn tag [expected-tag & tests]
+(defn tag
+  "Asserts that a component or element is rendered as a particular DOM
+  element, by tag, and runs an additional assertions against that
+  component. Tag names are case insensitive."
+  [expected-tag & tests]
   (fn -tag-pred [component]
     (let [actual (tag-name component)]
       (if-not (= expected-tag actual)
@@ -181,7 +211,7 @@
 
 (declare display-children)
 
-(defn display-child
+(defn ^:no-doc display-child
   ([component]
      (if (sub-component? (get-node component))
        {:sub-component (->
@@ -191,10 +221,23 @@
        {:tag (tag-name component)
         :children (display-children (children-of component))})))
 
-(defn display-children [children]
+(defn ^:no-doc display-children [children]
   (map #(display-child %) children))
 
-(defn containing [& tests]
+(defn containing
+  "Asserts that the component contains the given children. The number
+of predicates must exactly match the number of children, or the
+assertion will fail.
+
+Normally, each predicate will be a `tag`, containing optional
+additional tests against that child element:
+
+    (containing
+     (tag \"DIV\"
+          (with-class \"first-child\"))
+     (tag \"SPAN\"
+          (with-class \"second-child\")))"
+  [& tests]
   (fn -containing-pred [component]
     (let [children (children-of component)
           test-count (count tests)
@@ -217,7 +260,11 @@
     )
   )
 
-(defn with-prop [prop-name expected-value]
+(defn with-prop
+  "Asserts that a component has a prop with a particular value. This
+  is useful for asserting things about \"bound\" attributes, such as
+  the `value` of an input element."
+  [prop-name expected-value]
   (fn -with-prop-pred [component]
     (let [actual-value (aget (get-props component) prop-name)]
       (if (not= expected-value actual-value)
@@ -228,7 +275,10 @@
       ))
   )
 
-(defn with-text [text]
+(defn with-text
+  "Asserts that an element has the given text. Uses the `textContent`
+  property of the DOM node to gather the text of all child elements"
+  [text]
   (fn -text-pred [component]
     (let [component (get-node component)
           actual-text (.-textContent component)]
@@ -241,6 +291,18 @@
   )
 
 (defn sub-component
+  "Asserts that another Om component was rendered within the component
+being tested.
+
+When rendering with `rendered` or `rendered-component`, Huh prevents
+sub-components (as built via `om/build` or `om/build-all`) from
+actually being built. Instead, this predicate may be used to assert
+that the correct sub-component was built, using the correct cursor and
+options.
+
+`expected-component` should be the function defining the component,
+and `cursor` should be a raw ClojureScript data structure describing
+the *contents* of the cursor passed to the sub-component"
   ([expected-component cursor] (sub-component expected-component cursor nil))
   ([expected-component cursor m]
      (fn -sub-component-pred [component]
@@ -269,7 +331,12 @@
      )
   )
 
-(defn with-class [class-name]
+(defn with-class
+  "Asserts that the DOM node was given a particular CSS class.
+
+Uses the `classList` property, so can be specified multiple times to
+  test for multiple classes."
+  [class-name]
   (fn -with-class-pred [component]
     (let [node (get-node component)
           actual (.. node -className)]
@@ -281,7 +348,9 @@
     )
   )
 
-(defn with-attr [attr-name attr-value]
+(defn with-attr
+  "Asserts that a DOM element has a given attribute with a given value"
+  [attr-name attr-value]
   (fn -with-attr-pred [component]
     (let [component (get-node component)
           actual-value (.getAttribute component attr-name)]
@@ -295,7 +364,15 @@
     )
   )
 
-(defn after-event [event-attr event-arg dom-node callback]
+(defn after-event
+  "Simulates an event against a DOM element, and then invokes the
+callback function, to test that stateful components handle events
+correctly.
+
+This is generally combined with `rendered-component` and `in` to
+select the DOM element, and the callback function will execute
+assertions to test that the component handled the event correctly."
+  [event-attr event-arg dom-node callback]
   ((aget js/React.addons.TestUtils.Simulate (name event-attr))
    dom-node event-arg)
   (callback dom-node)

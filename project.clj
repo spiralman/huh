@@ -9,7 +9,11 @@
                  [org.omcljs/om "0.8.8" :exclusions [cljsjs/react]]
                  [cljsjs/react-with-addons "0.12.2-4"]]
   :plugins [[lein-cljsbuild "1.0.5"]
-            [com.cemerick/clojurescript.test "0.3.3"]]
+            [com.cemerick/clojurescript.test "0.3.3"]
+            [codox "0.8.12"]]
+  ;; Codox does not work with latest ClojureScript:
+  ;; https://github.com/weavejester/codox/issues/90
+  :profiles {:doc {:dependencies [[org.clojure/clojurescript "0.0-2985"]]}}
   :cljsbuild {
               :builds [{:id "test"
                         :source-paths ["src" "test"]
@@ -18,4 +22,8 @@
                                    :pretty-print true}}]
               :test-commands {"unit" ["phantomjs" :runner
                                       "js-libs/es5-shim.js"
-                                      "out/huh-test.js"]}})
+                                      "out/huh-test.js"]}}
+  :codox {:language :clojurescript
+          :src-dir-uri "http://github.com/spiralman/huh/blob/master/"
+          :src-linenum-anchor-prefix "L"
+          :defaults {:doc/format :markdown}})
