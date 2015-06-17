@@ -73,6 +73,10 @@ the "Burgerboard" application, which was the original impetus for the
 library:
 https://github.com/spiralman/burgerboard/tree/master/web-client/test/test_burgerboard
 
+## API Docs ##
+
+API documentation is available at https://spiralman.github.com/huh
+
 ## Why the Name? ##
 
 If "om" was the sound that created the universe, "huh" must certainly
