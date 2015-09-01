@@ -19,21 +19,20 @@ Using Leiningen, define a `project.clj`:
 ```clojure
 (defproject om-app "0.1.0"
   :description "An application written in ClojureScript with Om"
-  :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-3126"]
+  :dependencies [[org.clojure/clojure "1.7.0"]
+                 [org.clojure/clojurescript "1.7.48"]
                  [org.omcljs/om "0.8.8" :exclusions [cljsjs/react]]
                  [cljsjs/react-with-addons "0.12.2-4"]
-                 [huh "0.9.3"]
-  :plugins [[lein-cljsbuild "1.0.5"]
-            [com.cemerick/clojurescript.test "0.3.3"]]
+                 [huh "0.9.4"]]
+  :plugins [[lein-cljsbuild "1.0.5"]]
   :cljsbuild {
               :builds [{:id "test"
                         :source-paths ["src" "test"]
                         :compiler {:output-to "out/huh-test.js"
                                    :optimizations :whitespace
                                    :pretty-print true}}]
-              :test-commands {"unit" ["phantomjs" :runner
-                                      "js-libs/es5-shim.js"
+              :test-commands {"unit" ["phantomjs"
+                                      "my_test_runner.js"
                                       "out/huh-test.js"]}})
 ```
 
@@ -43,17 +42,13 @@ Note two dependencies:
    just `react` in your application, you can use a separate profile
    for writing unit tests.
 1. If you want to run your unit tests in PhantomJS, you will need
-es5-shim (or a similar library), because React depends on it.
+es5-shim (or a similar library), or use PhantomJS 2.0
 
-Assuming you're using `clojurescript.test`, a test for a component
-looks like:
+Assuming you're using `cljs.test`, a test for a component looks like:
 
 ```clojure
 (ns test.test-app
-  (:require-macros [cemerick.cljs.test
-                    :refer (is deftest with-test run-tests testing test-var
-                            done)])
-  (:require [cemerick.cljs.test :as t]
+  (:require [cljs.test :refer-macros [deftest is]]
             [huh.core :as huh :refer [rendered] :include-macros true]))
 
 (deftest component-renders-controls

@@ -1,12 +1,9 @@
 (ns huh.core
-  (:require [cemerick.cljs.test :as t]
-            )
-  )
+  (:require [cljs.test :as t]))
 
-(defmethod t/assert-expr 'rendered [msg form]
+(defmethod t/assert-expr 'rendered [menv msg form]
   `(let [result# ~form]
-     (do-report (t/test-context)
-                {:type (if (= true result#) :pass :fail), :message ~msg,
+     (do-report {:type (if (= true result#) :pass :fail), :message ~msg,
                  :expected '~form, :actual result#}
                 )
      )
