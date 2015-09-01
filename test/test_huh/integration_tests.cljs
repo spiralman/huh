@@ -1,7 +1,5 @@
 (ns test.test-huh.integration-tests
-  (:require-macros [cemerick.cljs.test
-                    :refer (is deftest with-test run-tests testing test-var done)])
-  (:require [cemerick.cljs.test :as t]
+  (:require [cljs.test :refer-macros [deftest is async]]
             [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
             [huh.core :as huh :refer [rendered] :include-macros true]))
@@ -78,12 +76,13 @@
 
 
 ;; state changing
-(deftest ^:async state-changes-on-click
-  (let [rendered-component (huh/rendered-component stateful
-                                                   (huh/setup-state {}))]
-    (huh/after-event
-     :click #js {:target #js {}}
-     (huh/in rendered-component "button")
-     (fn [_]
-       (is (= 2 (:value (huh/get-state rendered-component))))
-       (done)))))
+(deftest state-changes-on-click
+  (async done
+   (let [rendered-component (huh/rendered-component stateful
+                                                    (huh/setup-state {}))]
+     (huh/after-event
+      :click #js {:target #js {}}
+      (huh/in rendered-component "button")
+      (fn [_]
+        (is (= 2 (:value (huh/get-state rendered-component))))
+        (done))))))

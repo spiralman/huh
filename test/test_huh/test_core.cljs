@@ -1,9 +1,6 @@
-(ns test.test-huh.core
-  (:require-macros [cemerick.cljs.test
-                    :refer [is deftest with-test run-tests testing test-var
-                            done]]
-                   [huh.core :refer [with-rendered]])
-  (:require [cemerick.cljs.test :as t]
+(ns test.test-huh.test-core
+  (:require-macros [huh.core :refer [with-rendered]])
+  (:require [cljs.test :refer-macros [deftest is run-tests async] :as t]
             [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
             [huh.core :as huh]))
@@ -240,7 +237,7 @@
           {:msg "Wrong number of child elements"
            :expected 2 :actual 1
            :actual-children '({:sub-component
-                               "test$test_huh$core$some_component"})}]
+                               "test$test_huh$test_core$some_component"})}]
          (huh/rendered (div-component #js {}
                                       #(om/build some-component
                                                  {:cursor "value"}))
@@ -300,8 +297,8 @@
 (deftest sub-component-returns-error-when-component-does-not-match
   (is (= '({:in "rendered component"}
            ({:msg "sub-component does not match"
-             :expected "test$test_huh$core$some_component"
-             :actual "test$test_huh$core$other_component"}))
+             :expected "test$test_huh$test_core$some_component"
+             :actual "test$test_huh$test_core$other_component"}))
          (huh/rendered
           (div-component #js {}
                          #(om/build other-component
@@ -314,7 +311,7 @@
 
 (deftest sub-component-returns-error-when-cursor-does-not-match
   (is (= '({:in "rendered component"}
-           ({:msg "sub-component cursor does not match for test$test_huh$core$some_component"
+           ({:msg "sub-component cursor does not match for test$test_huh$test_core$some_component"
              :expected {:cursor "value"}
              :actual {:cursor "other value"}}))
          (huh/rendered
@@ -329,7 +326,7 @@
 
 (deftest sub-component-returns-error-when-m-does-not-match
   (is (= '({:in "rendered component"}
-           ({:msg "sub-component m does not match for test$test_huh$core$some_component"
+           ({:msg "sub-component m does not match for test$test_huh$test_core$some_component"
              :expected {:opts {:some-opt 1}}
              :actual {:opts {:other-opt 2}}}))
          (huh/rendered
@@ -371,17 +368,19 @@
     (is (= "SPAN" (.-tagName selected)))
     (is (= "grandchild" (.-id selected)))))
 
-(deftest ^:async after-event-triggers-event-and-calls-callback-asynchronously
-  (let [event-args (atom nil)
-        state (huh/setup-state {})]
-    (huh/after-event
-     :click #js {:event "args"}
-     (huh/in (huh/rendered-component
-              (div-component #js {:onClick #(reset! event-args %)}) state))
-     (fn [clicked-node]
-       (is (= "DIV" (.-tagName clicked-node)))
-       (is (= "args" (aget @event-args "event")))
-       (done)))))
+(deftest after-event-triggers-event-and-calls-callback-asynchronously
+  (async
+   done
+   (let [event-args (atom nil)
+         state (huh/setup-state {})]
+     (huh/after-event
+      :click #js {:event "args"}
+      (huh/in (huh/rendered-component
+               (div-component #js {:onClick #(reset! event-args %)}) state))
+      (fn [clicked-node]
+        (is (= "DIV" (.-tagName clicked-node)))
+        (is (= "args" (aget @event-args "event")))
+        (done))))))
 
 ;; with-rendered
 (deftest with-rendered-executes-assertion-and-provides-parameter

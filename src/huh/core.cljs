@@ -1,7 +1,7 @@
 (ns huh.core
   (:require-macros)
   (:require
-   [cemerick.cljs.test :as t]
+   [cljs.test :as t]
    [om.core :as om :include-macros true]
    [om.dom :as dom :include-macros true]
    [clojure.string :refer [lower-case]]
